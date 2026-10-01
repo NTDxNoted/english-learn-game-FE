@@ -1,5 +1,9 @@
-import axios, { AxiosError, type InternalAxiosRequestConfig } from 'axios';
+import axios, {
+  AxiosError,
+  type InternalAxiosRequestConfig,
+} from 'axios';
 import { ApiError, type ApiErrorResponse, type ApiResponse } from '../types/api.types';
+import type { AuthTokens } from '../types/auth.types';
 import { tokenStorage } from './tokenStorage';
 
 const baseURL = (import.meta.env.VITE_API_BASE_URL as string | undefined) || '/api/v1';
@@ -12,7 +16,7 @@ export const apiClient = axios.create({
   },
 });
 
-// Request Interceptor: Gắn JWT token vào header
+// Request Interceptor: Gắn JWT access token của AWS Cognito vào header
 apiClient.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
     const token = tokenStorage.getAccessToken();
@@ -24,18 +28,122 @@ apiClient.interceptors.request.use(
   (error: unknown) => Promise.reject(error),
 );
 
-// Response Interceptor: Bóc data và chuẩn hóa lỗi thành ApiError
+// Hàng đợi xử lý làm mới token (Token Refresh Mutex / Queue)
+let isRefreshing = false;
+let failedQueue: Array<{
+  resolve: (token: string) => void;
+  reject: (error: unknown) => void;
+}> = [];
+
+const processQueue = (error: unknown, token: string | null = null) => {
+  failedQueue.forEach((prom) => {
+    if (error) {
+      prom.reject(error);
+    } else if (token) {
+      prom.resolve(token);
+    }
+  });
+  failedQueue = [];
+};
+
+interface CustomRequestConfig extends InternalAxiosRequestConfig {
+  _retry?: boolean;
+}
+
+// Response Interceptor: Bóc data và tự động làm mới token Cognito khi hết hạn
 apiClient.interceptors.response.use(
   (response) => {
-    // Trả về response.data là ApiResponse<T>
     return response.data;
   },
-  (error: AxiosError<ApiErrorResponse>) => {
+  async (error: AxiosError<ApiErrorResponse>) => {
+    const originalRequest = error.config as CustomRequestConfig | undefined;
     const status = error.response?.status;
     const errorData = error.response?.data;
+    const errorCode = errorData?.errorCode;
 
-    // Khi nhận 401 (TOKEN_EXPIRED hoặc UNAUTHORIZED): xóa token, thông báo và điều hướng về /login
-    if (status === 401) {
+    // Kiểm tra nếu là lỗi hết hạn token (TOKEN_EXPIRED hoặc 401 khi đã có token)
+    const isTokenExpired =
+      status === 401 && (errorCode === 'TOKEN_EXPIRED' || tokenStorage.hasAccessToken());
+
+    if (originalRequest && isTokenExpired && !originalRequest._retry) {
+      const refreshToken = tokenStorage.getRefreshToken();
+
+      // Nếu không có refresh token thì chuyển hướng thẳng về login
+      if (!refreshToken) {
+        tokenStorage.notifyUnauthorized();
+        if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/login')) {
+          window.location.href = '/login?sessionExpired=true';
+        }
+        return Promise.reject(
+          new ApiError(errorData || { message: 'Phiên đăng nhập đã hết hạn', errorCode: 'TOKEN_EXPIRED' }, 401),
+        );
+      }
+
+      if (isRefreshing) {
+        // Nếu đang trong tiến trình làm mới token, đẩy request vào hàng đợi
+        return new Promise<unknown>((resolve, reject) => {
+          failedQueue.push({
+            resolve: (newToken: string) => {
+              if (originalRequest.headers) {
+                originalRequest.headers.Authorization = `Bearer ${newToken}`;
+              }
+              resolve(apiClient(originalRequest));
+            },
+            reject: (err: unknown) => {
+              reject(err);
+            },
+          });
+        });
+      }
+
+      originalRequest._retry = true;
+      isRefreshing = true;
+
+      try {
+        // Gọi backend refresh token (AWS Cognito via backend bridge)
+        const refreshResponse = await axios.post<ApiResponse<AuthTokens>>(
+          `${baseURL}/auth/refresh`,
+          { refreshToken },
+          { headers: { 'Content-Type': 'application/json' } },
+        );
+
+        const newTokens = refreshResponse.data.data;
+        tokenStorage.setAccessToken(newTokens.accessToken);
+        if (newTokens.refreshToken) {
+          tokenStorage.setRefreshToken(newTokens.refreshToken);
+        }
+
+        processQueue(null, newTokens.accessToken);
+
+        if (originalRequest.headers) {
+          originalRequest.headers.Authorization = `Bearer ${newTokens.accessToken}`;
+        }
+        return apiClient(originalRequest);
+      } catch (refreshError) {
+        processQueue(refreshError, null);
+        tokenStorage.notifyUnauthorized();
+        if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/login')) {
+          window.location.href = '/login?sessionExpired=true';
+        }
+        return Promise.reject(
+          new ApiError(
+            {
+              success: false,
+              message: 'Phiên làm việc đã hết hạn. Vui lòng đăng nhập lại.',
+              errorCode: 'REFRESH_TOKEN_INVALID',
+              errors: [],
+              timestamp: new Date().toISOString(),
+            },
+            401,
+          ),
+        );
+      } finally {
+        isRefreshing = false;
+      }
+    }
+
+    // Các lỗi 401 khác mà không thể refresh
+    if (status === 401 && !originalRequest?._retry) {
       tokenStorage.notifyUnauthorized();
       if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/login')) {
         window.location.href = '/login?sessionExpired=true';
@@ -46,7 +154,6 @@ apiClient.interceptors.response.use(
       return Promise.reject(new ApiError(errorData, status ?? 500));
     }
 
-    // Trường hợp lỗi mạng (Network Error) hoặc server crash không trả về format chuẩn
     const fallbackError: Partial<ApiErrorResponse> = {
       success: false,
       message: error.message || 'Lỗi kết nối tới máy chủ',
@@ -59,9 +166,6 @@ apiClient.interceptors.response.use(
   },
 );
 
-/**
- * Helper types và methods thuận tiện cho việc gọi API có kiểu dữ liệu an toàn
- */
 export const http = {
   get: <T>(url: string, params?: Record<string, unknown>): Promise<ApiResponse<T>> =>
     apiClient.get(url, { params }) as unknown as Promise<ApiResponse<T>>,

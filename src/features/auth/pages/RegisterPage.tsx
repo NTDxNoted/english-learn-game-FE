@@ -1,8 +1,18 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { UserPlus, Sparkles } from 'lucide-react';
+import { useToast } from '../../../app/providers/useToast';
 
 export const RegisterPage: React.FC = () => {
+  const navigate = useNavigate();
+  const { success } = useToast();
+
+  const handleMockRegister = (e: React.FormEvent) => {
+    e.preventDefault();
+    success('Đăng ký thành công! Mã OTP đã được gửi từ AWS Cognito.', 'Xác thực OTP');
+    navigate('/verify-register', { state: { email: 'user1@gmail.com' } });
+  };
+
   return (
     <div className="auth-page-container">
       <div className="auth-card">
@@ -14,12 +24,54 @@ export const RegisterPage: React.FC = () => {
           <p className="auth-subtitle">Tạo tài khoản người học để bắt đầu luyện tập</p>
         </div>
 
-        <div className="p-4 rounded-lg bg-surface-muted text-center mb-4">
-          <p className="text-sm text-muted">
-            Trang đăng ký (Sẵn sàng triển khai chi tiết ở <strong>AUTH-01</strong> với Zod schema &amp; POST
-            /api/v1/auth/register).
-          </p>
-        </div>
+        <form onSubmit={handleMockRegister} className="auth-form">
+          <div className="form-group">
+            <label className="form-label" htmlFor="register-email">
+              Email
+            </label>
+            <input
+              id="register-email"
+              type="email"
+              className="form-input"
+              placeholder="user1@gmail.com"
+              defaultValue="learner@gmail.com"
+              required
+            />
+          </div>
+
+          <div className="form-group">
+            <label className="form-label" htmlFor="register-displayName">
+              Tên hiển thị (3-20 ký tự)
+            </label>
+            <input
+              id="register-displayName"
+              type="text"
+              className="form-input"
+              placeholder="John"
+              defaultValue="John"
+              required
+            />
+          </div>
+
+          <div className="form-group">
+            <label className="form-label" htmlFor="register-password">
+              Mật khẩu (Có chữ hoa, thường, số &amp; ký tự đặc biệt)
+            </label>
+            <input
+              id="register-password"
+              type="password"
+              className="form-input"
+              placeholder="••••••••"
+              defaultValue="Password@123"
+              required
+            />
+          </div>
+
+          <button type="submit" className="btn btn-primary w-full mt-2">
+            <UserPlus size={18} />
+            <span>Đăng ký (Sẵn sàng cho AUTH-01)</span>
+          </button>
+        </form>
 
         <div className="auth-footer">
           <p>
@@ -28,9 +80,15 @@ export const RegisterPage: React.FC = () => {
               Đăng nhập tại đây
             </Link>
           </p>
+          <p className="text-xs text-muted">
+            Đã đăng ký nhưng chưa xác minh OTP?{' '}
+            <Link to="/verify-register" className="auth-link">
+              Nhập mã xác minh tại đây
+            </Link>
+          </p>
           <div className="auth-note">
             <Sparkles size={14} className="inline mr-1" />
-            Issue AUTH-01 sẽ hiện form Zod và bắt lỗi EMAIL_ALREADY_EXISTS.
+            Issue AUTH-01 gọi POST /api/v1/auth/register, Cognito gửi email OTP và chuyển tiếp sang /verify-register.
           </div>
         </div>
       </div>

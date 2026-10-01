@@ -1,10 +1,30 @@
 # English Learning Game - Frontend (V1)
 
-Ứng dụng web học từ vựng tiếng Anh tương tác, nhận diện cử chỉ bàn tay qua webcam (MediaPipe Hands) và hỗ trợ chuột.
+Ứng dụng web học từ vựng tiếng Anh tương tác, nhận diện cử chỉ bàn tay qua webcam (MediaPipe Hands), tích hợp các dịch vụ đám mây **AWS (Cognito, Polly, S3)** thông qua Backend API.
 
 ---
 
-## 1. Yêu cầu hệ thống
+## 1. Kiến trúc dịch vụ đám mây AWS trong dự án
+
+Dự án áp dụng mô hình kiến trúc bảo mật chuẩn Enterprise cho ứng dụng Frontend tương tác với AWS:
+
+1. **AWS Cognito User Pool (Xác thực & Quản lý danh tính)**:
+   - **Frontend KHÔNG gọi trực tiếp AWS Cognito SDK** và **tuyệt đối KHÔNG chứa AWS Access Key / Secret Key**.
+   - Backend đóng vai trò cầu nối (Bridge/Proxy) gọi Cognito SDK (`SignUp`, `ConfirmSignUp`, `InitiateAuth`, `ForgotPassword`, `GlobalSignOut`).
+   - Token trả về gồm:
+     - `accessToken`: Dùng làm Bearer token duy nhất (`Authorization: Bearer <accessToken>`) cho mọi API được bảo vệ.
+     - `refreshToken`: Được frontend lưu an toàn trong `localStorage` và tự động làm mới khi `accessToken` hết hạn sau 60 phút qua hàng đợi interceptor `apiClient`.
+     - `idToken`: Không lưu và không dùng làm Bearer token (Backend sẽ từ chối).
+   - Luồng xác thực hỗ trợ mã OTP gửi qua email: Đăng ký (`/register`) -> Nhập OTP (`/verify-register`) -> Đăng nhập (`/login`).
+   - Quên mật khẩu: Nhập email (`/forgot-password`) -> Nhận OTP và đổi mật khẩu mới (`/reset-password`).
+
+2. **AWS Polly & AWS S3 / CloudFront (Âm thanh phát âm từ vựng)**:
+   - File âm thanh giọng đọc bản xứ được Backend tự động tạo qua AWS Polly khi thêm từ vựng mới và lưu trên AWS S3.
+   - Frontend nhận `audioUrl` (presigned URL hoặc CloudFront CDN) và phát qua HTML5 Audio mà không cần quyền truy cập AWS trực tiếp.
+
+---
+
+## 2. Yêu cầu hệ thống
 
 - **Node.js**: Phiên bản LTS (`>= 20.x` hoặc `22.x`)
 - **Trình quản lý gói**: `npm` (`>= 10.x`) hoặc `pnpm`
@@ -12,7 +32,7 @@
 
 ---
 
-## 2. Hướng dẫn cài đặt và khởi chạy
+## 3. Hướng dẫn cài đặt và khởi chạy
 
 ### Bước 1: Clone kho mã nguồn
 
@@ -53,7 +73,7 @@ npm run dev
 
 ---
 
-## 3. Các Scripts hữu ích
+## 4. Các Scripts hữu ích
 
 | Lệnh | Ý nghĩa |
 |---|---|
@@ -64,21 +84,21 @@ npm run dev
 
 ---
 
-## 4. Cấu trúc thư mục (Feature-based Architecture)
+## 5. Cấu trúc thư mục (Feature-based Architecture)
 
 ```
 src/
 ├── app/                  # Điểm khởi tạo ứng dụng, router, TanStack Query & Toast providers
-├── lib/                  # Axios apiClient chuẩn hóa, tokenStorage quản lý JWT
-├── types/                # Types dữ liệu chuẩn (ApiResponse, ApiError, PageResponse, User)
+├── lib/                  # Axios apiClient chuẩn hóa (tự động refresh token Cognito), tokenStorage
+├── types/                # Types dữ liệu chuẩn (ApiResponse, ApiError, PageResponse, AuthTokens)
 ├── components/
 │   ├── layout/           # AppLayout, Header điều hướng (Learner / Admin)
 │   └── common/           # Loading spinner, EmptyState, ErrorState, Toast notification
 ├── pages/                # Các trang cấp cao (HomePage, NotFoundPage 404, ErrorPage)
 └── features/             # Các module tính năng theo nghiệp vụ
-    ├── auth/             # Đăng ký (AUTH-01), Đăng nhập (AUTH-02), Quên mật khẩu (AUTH-04)
+    ├── auth/             # Đăng ký & OTP (AUTH-01), Đăng nhập & Refresh (AUTH-02), Quên mật khẩu (AUTH-04)
     ├── topics/           # Danh sách chủ đề học (TOPIC-01)
-    ├── vocabularies/     # Từ vựng & Phát âm Polly (VOCAB-01, AUDIO-01)
+    ├── vocabularies/     # Từ vựng & Phát âm AWS Polly (VOCAB-01, AUDIO-01)
     ├── game/             # Màn hình chơi và lớp nhận diện cử chỉ MediaPipe (GAME-01..05)
     ├── progress/         # Tiến trình học và streak (PROGRESS-01)
     ├── leaderboard/      # Bảng xếp hạng tuần (LEADERBOARD-01)
@@ -87,7 +107,7 @@ src/
 
 ---
 
-## 5. Quy ước nhánh và Quy trình phát triển (Git Workflow)
+## 6. Quy ước nhánh và Quy trình phát triển (Git Workflow)
 
 - **`main`**: Nhánh chính, mã nguồn luôn ở trạng thái ổn định, sẵn sàng triển khai.
 - **`develop`**: Nhánh tích hợp các tính năng chuẩn bị cho bản phát hành tiếp theo.
@@ -95,7 +115,7 @@ src/
   ```
   feature/<ID-Issue>-<mô-tả-ngắn>
   ```
-  *Ví dụ:* `feature/AUTH-01-register-form`, `feature/TOPIC-01-topic-list`.
+  *Ví dụ:* `feature/AUTH-01-cognito-register-otp`, `feature/AUDIO-01-polly-speech`.
 - **Pull Request (PR)**:
   - Khi tạo PR vào `main` hoặc `develop`, GitHub Actions CI sẽ tự động kích hoạt kiểm tra:
     1. Cài đặt dependencies (`npm ci`).

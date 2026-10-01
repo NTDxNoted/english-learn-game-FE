@@ -1,6 +1,14 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Sparkles, Gamepad2, BookOpen, Trophy, ShieldCheck, Flame } from 'lucide-react';
+import {
+  Gamepad2,
+  BookOpen,
+  Trophy,
+  ShieldCheck,
+  Flame,
+  Cloud,
+  Volume2,
+} from 'lucide-react';
 import { useToast } from '../app/providers/useToast';
 
 export const HomePage: React.FC = () => {
@@ -11,8 +19,8 @@ export const HomePage: React.FC = () => {
       {/* Hero Section */}
       <section className="hero-section">
         <div className="hero-badge">
-          <Sparkles size={16} className="text-amber-400" />
-          <span>Phiên bản V1: Học từ vựng tiếng Anh qua nhận diện cử chỉ tay</span>
+          <Cloud size={16} className="text-amber-400" />
+          <span>Hệ thống Tích hợp Dịch vụ Đám mây AWS (Cognito, Polly, S3) &amp; AI MediaPipe</span>
         </div>
         <h1 className="hero-title">
           Chinh phục Từ vựng Tiếng Anh cùng <br />
@@ -20,7 +28,7 @@ export const HomePage: React.FC = () => {
         </h1>
         <p className="hero-subtitle">
           Ghép chữ cái tiếng Anh bằng cử chỉ ngón tay qua camera (MediaPipe Hands) hoặc chuột máy
-          tính. Tích lũy điểm số, duy trì chuỗi Streak học tập và đua top bảng xếp hạng tuần!
+          tính. Hệ thống xác thực bảo mật chuẩn Enterprise qua AWS Cognito và phát âm chuẩn bản xứ với AWS Polly.
         </p>
 
         <div className="hero-cta-group">
@@ -46,19 +54,43 @@ export const HomePage: React.FC = () => {
             Sử dụng MediaPipe hand tracking để nhận biết ngón trỏ và ngón cái, cho phép bạn tương
             tác gắp thả ký tự tự nhiên ngay trước webcam.
           </p>
-          <div className="card-link-placeholder">SETUP-04 & GAME-01</div>
+          <div className="card-link-placeholder">SETUP-04 &amp; GAME-01</div>
+        </div>
+
+        <div className="feature-card">
+          <div className="feature-icon bg-purple">
+            <Cloud size={24} />
+          </div>
+          <h3 className="feature-title">Xác thực AWS Cognito</h3>
+          <p className="feature-desc">
+            Đăng ký, xác minh OTP qua email, đăng nhập và tự động làm mới accessToken với AWS Cognito
+            thông qua Backend API Bridge bảo mật cao.
+          </p>
+          <div className="card-link-placeholder">AUTH-01..04 (AWS COGNITO)</div>
+        </div>
+
+        <div className="feature-card">
+          <div className="feature-icon bg-emerald">
+            <Volume2 size={24} />
+          </div>
+          <h3 className="feature-title">Phát âm AWS Polly &amp; S3</h3>
+          <p className="feature-desc">
+            Giọng phát âm chuẩn người bản xứ được tổng hợp tự động bằng AWS Polly và lưu trữ tối ưu
+            trên AWS S3 / CloudFront CDN.
+          </p>
+          <div className="card-link-placeholder">AUDIO-01 &amp; VOCAB-01</div>
         </div>
 
         <div className="feature-card">
           <div className="feature-icon bg-emerald">
             <Flame size={24} />
           </div>
-          <h3 className="feature-title">Tiến trình & Chuỗi Streak</h3>
+          <h3 className="feature-title">Tiến trình &amp; Chuỗi Streak</h3>
           <p className="feature-desc">
             Theo dõi tỷ lệ hoàn thành từ vựng, tự động duy trì chuỗi ngày học liên tiếp để nhận thêm
-            điểm thưởng và huy hiệu.
+            điểm thưởng và đua top bảng xếp hạng tuần.
           </p>
-          <div className="card-link-placeholder">PROGRESS-01</div>
+          <div className="card-link-placeholder">PROGRESS-01 &amp; LEADERBOARD-01</div>
         </div>
 
         <div className="feature-card">
@@ -67,8 +99,8 @@ export const HomePage: React.FC = () => {
           </div>
           <h3 className="feature-title">Trang Quản trị Hệ thống</h3>
           <p className="feature-desc">
-            Dành cho Admin quản lý người dùng, cấu hình game, thêm sửa danh mục topic và từ vựng
-            kèm tính năng phát âm Polly.
+            Dành cho Admin quản lý tài khoản người học, cấu hình tham số game, quản lý chủ đề và
+            từ vựng kèm tính năng tái tạo audio phát âm.
           </p>
           <div className="card-link-placeholder">ADMIN-01..04</div>
         </div>
@@ -100,7 +132,7 @@ export const HomePage: React.FC = () => {
           <button
             type="button"
             className="btn btn-info btn-sm"
-            onClick={() => info('Thông tin: Đang sử dụng Axios Client chuẩn hoá', 'Thông tin')}
+            onClick={() => info('Thông tin: Đang sử dụng Axios Client hỗ trợ Cognito Token Refresh', 'Thông tin')}
           >
             Toast Info
           </button>

@@ -5,6 +5,9 @@ import { NotFoundPage } from '../pages/NotFoundPage';
 import { ErrorPage } from '../pages/ErrorPage';
 import { LoginPage } from '../features/auth/pages/LoginPage';
 import { RegisterPage } from '../features/auth/pages/RegisterPage';
+import { VerifyRegisterPage } from '../features/auth/pages/VerifyRegisterPage';
+import { ForgotPasswordPage } from '../features/auth/pages/ForgotPasswordPage';
+import { ResetPasswordPage } from '../features/auth/pages/ResetPasswordPage';
 import { TopicListPage } from '../features/topics/pages/TopicListPage';
 import { GameSessionPage } from '../features/game/pages/GameSessionPage';
 import { ProgressPage } from '../features/progress/pages/ProgressPage';
@@ -12,7 +15,7 @@ import { LeaderboardPage } from '../features/leaderboard/pages/LeaderboardPage';
 import { AdminTopicListPage } from '../features/admin/pages/AdminTopicListPage';
 
 export const router = createBrowserRouter([
-  // Nhóm route có giao diện chung (AppLayout)
+  // Nhóm route có giao diện chính (AppLayout)
   {
     path: '/',
     element: <AppLayout />,
@@ -67,7 +70,7 @@ export const router = createBrowserRouter([
       },
     ],
   },
-  // Nhóm route công khai xác thực (Authentication)
+  // Nhóm route công khai xác thực (AWS Cognito flow)
   {
     path: '/login',
     element: <LoginPage />,
@@ -79,13 +82,18 @@ export const router = createBrowserRouter([
     errorElement: <ErrorPage />,
   },
   {
+    path: '/verify-register',
+    element: <VerifyRegisterPage />,
+    errorElement: <ErrorPage />,
+  },
+  {
     path: '/forgot-password',
-    element: <LoginPage />,
+    element: <ForgotPasswordPage />,
     errorElement: <ErrorPage />,
   },
   {
     path: '/reset-password',
-    element: <LoginPage />,
+    element: <ResetPasswordPage />,
     errorElement: <ErrorPage />,
   },
   // 404 Fallback

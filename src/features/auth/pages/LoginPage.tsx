@@ -12,9 +12,12 @@ export const LoginPage: React.FC = () => {
 
   const handleMockLogin = (e: React.FormEvent) => {
     e.preventDefault();
-    // Giả lập token tạm thời phục vụ kiểm thử luồng SETUP-04
-    tokenStorage.setAccessToken('mock-jwt-token-sample-for-setup');
-    success('Đăng nhập thành công (Mock Token)! Sẵn sàng cho AUTH-02.', 'Xác thực');
+    // Giả lập lưu cả accessToken và refreshToken từ AWS Cognito phục vụ kiểm thử SETUP-04
+    tokenStorage.setTokens({
+      accessToken: 'mock-cognito-access-token-sample',
+      refreshToken: 'mock-cognito-refresh-token-sample',
+    });
+    success('Đăng nhập thành công (Lưu accessToken & refreshToken)! Sẵn sàng cho AUTH-02.', 'Xác thực AWS Cognito');
     navigate('/topics');
   };
 
@@ -52,15 +55,20 @@ export const LoginPage: React.FC = () => {
           </div>
 
           <div className="form-group">
-            <label className="form-label" htmlFor="password">
-              Mật khẩu
-            </label>
+            <div className="flex items-center justify-between">
+              <label className="form-label" htmlFor="password">
+                Mật khẩu
+              </label>
+              <Link to="/forgot-password" className="text-xs text-primary font-medium hover:underline">
+                Quên mật khẩu?
+              </Link>
+            </div>
             <input
               id="password"
               type="password"
               className="form-input"
               placeholder="••••••••"
-              defaultValue="Abcd1234"
+              defaultValue="Password@123"
               required
             />
           </div>
@@ -78,9 +86,15 @@ export const LoginPage: React.FC = () => {
               Đăng ký ngay
             </Link>
           </p>
+          <p className="text-xs text-muted">
+            Đã đăng ký nhưng chưa xác minh OTP?{' '}
+            <Link to="/verify-register" className="auth-link">
+              Xác minh tại đây
+            </Link>
+          </p>
           <div className="auth-note">
             <Sparkles size={14} className="inline mr-1" />
-            Issue AUTH-02 sẽ tích hợp form Zod và gọi endpoint POST /api/v1/auth/login.
+            Issue AUTH-02 gọi POST /api/v1/auth/login. Token do AWS Cognito cấp, backend làm cầu nối.
           </div>
         </div>
       </div>

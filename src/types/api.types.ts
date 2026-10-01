@@ -1,6 +1,7 @@
 /**
  * Định nghĩa chuẩn các cấu trúc API response theo hợp đồng Backend:
  * - Quy ước: JSON dùng camelCase, base path: /api/v1
+ * - Xác thực: AWS Cognito User Pool thông qua Backend bridge (Frontend KHÔNG gọi trực tiếp AWS SDK)
  * - Múi giờ chuẩn: ISO-8601 kèm múi giờ (Asia/Ho_Chi_Minh)
  */
 
@@ -32,6 +33,9 @@ export interface PageResponse<T> {
   totalPages: number;
 }
 
+/**
+ * Danh sách mã lỗi chuẩn hóa từ Backend và AWS Cognito
+ */
 export type CommonErrorCode =
   | 'VALIDATION_ERROR'
   | 'UNAUTHORIZED'
@@ -41,6 +45,18 @@ export type CommonErrorCode =
   | 'NOT_FOUND'
   | 'CONFLICT'
   | 'INTERNAL_ERROR'
+  // AWS Cognito error mappings
+  | 'EMAIL_ALREADY_EXISTS'
+  | 'WEAK_PASSWORD'
+  | 'OTP_INVALID'
+  | 'OTP_EXPIRED'
+  | 'TOO_MANY_REQUESTS'
+  | 'COGNITO_ERROR'
+  | 'INVALID_CREDENTIALS'
+  | 'ACCOUNT_NOT_VERIFIED'
+  | 'PASSWORD_RESET_REQUIRED'
+  | 'REFRESH_TOKEN_INVALID'
+  | 'CHALLENGE_NOT_SUPPORTED'
   | (string & {});
 
 export class ApiError extends Error {
