@@ -20,7 +20,7 @@ export const VerifyRegisterPage: React.FC = () => {
       'Kích hoạt tài khoản thành công! Bạn có thể đăng nhập để bắt đầu hành trình học tập.',
       'AWS Cognito Verified',
     );
-    navigate('/login');
+    navigate(`/login?verified=true&email=${encodeURIComponent(initialEmail)}`);
   };
 
   return (

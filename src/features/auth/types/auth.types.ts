@@ -40,3 +40,13 @@ export interface ConfirmRegisterRequest {
 export interface ResendCodeRequest {
   email: string;
 }
+
+// Request & Response payload cho AUTH-02
+export interface LoginRequest {
+  email: string;
+  password: string;
+}
+
+export interface RefreshTokenRequest {
+  refreshToken: string;
+}

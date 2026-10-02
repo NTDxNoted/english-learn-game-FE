@@ -1,4 +1,4 @@
-# English Learning Game V1: Bộ issue Frontend
+﻿# English Learning Game V1: Bộ issue Frontend
 
 Tài liệu này gồm **các issue phần Frontend** (React + Vite + TypeScript) của dự án, tách ra từ bộ issue gốc. Mỗi issue gồm **Mô tả, Tasklist, Endpoints (API contract do backend cung cấp), Response mẫu, Business rule và lưu ý, File structure**. ID issue giữ nguyên so với bộ gốc; cột "Phụ thuộc" có thể trỏ tới issue backend nằm trong file `english-learning-game-issues-backend.md`. Xác thực dùng **AWS Cognito** nhưng frontend **không** gọi trực tiếp Cognito, chỉ gọi API backend (theo `WordMotion_FE_AWS_Cognito_Flow_Guide.md`). Frontend là **một repository riêng** (`english-learning-game-frontend`), không chung repo với backend; đường dẫn trong File structure tính từ thư mục gốc của repo frontend. File này chỉ mô tả, chưa có code.
 
@@ -252,12 +252,12 @@ Người dùng tạo tài khoản bằng email, mật khẩu và tên hiển th�
 
 ### Tasklist
 
-- [ ] Trang `RegisterPage` (`/register`): email, mật khẩu, nhập lại mật khẩu, tên hiển thị.
-- [ ] Validate bằng Zod giống policy mật khẩu của User Pool, hiển thị lỗi theo từng trường.
-- [ ] Lỗi `EMAIL_ALREADY_EXISTS` hiển thị tại ô email, kèm link "Đã đăng ký nhưng chưa xác minh?" dẫn tới `/verify-register`.
-- [ ] Đăng ký thành công: chuyển sang `/verify-register` kèm email (qua route state hoặc query, **không** kèm mật khẩu).
-- [ ] Trang `VerifyRegisterPage` (`/verify-register`): ô nhập mã OTP, nút xác nhận, nút "Gửi lại mã" có đếm ngược 60 giây. Nếu không có email từ trang trước thì cho nhập email.
-- [ ] Hiển thị các lỗi `OTP_INVALID`, `OTP_EXPIRED`, `TOO_MANY_REQUESTS` bằng thông báo thân thiện.
+- [x] Trang `RegisterPage` (`/register`): email, mật khẩu, nhập lại mật khẩu, tên hiển thị.
+- [x] Validate bằng Zod giống policy mật khẩu của User Pool, hiển thị lỗi theo từng trường.
+- [x] Lỗi `EMAIL_ALREADY_EXISTS` hiển thị tại ô email, kèm link "Đã đăng ký nhưng chưa xác minh?" dẫn tới `/verify-register`.
+- [x] Đăng ký thành công: chuyển sang `/verify-register` kèm email (qua route state hoặc query, **không** kèm mật khẩu).
+- [x] Trang `VerifyRegisterPage` (`/verify-register`): ô nhập mã OTP, nút xác nhận, nút "Gửi lại mã" có đếm ngược 60 giây. Nếu không có email từ trang trước thì cho nhập email.
+- [x] Hiển thị các lỗi `OTP_INVALID`, `OTP_EXPIRED`, `TOO_MANY_REQUESTS` bằng thông báo thân thiện.
 - [ ] Xác minh thành công: toast và chuyển sang `/login`.
 
 ### Endpoints (API contract do backend cung cấp)
@@ -398,12 +398,12 @@ Người dùng đăng nhập bằng email và mật khẩu. Backend gọi Cognit
 
 ### Tasklist
 
-- [ ] Trang `LoginPage` (`/login`): email, mật khẩu, nút đăng nhập, link tới quên mật khẩu và đăng ký.
-- [ ] Gọi API, lưu **chỉ** `accessToken` và `refreshToken` qua `tokenStorage` (không lưu `idToken`).
-- [ ] Sau khi đăng nhập gọi `GET /api/v1/users/me` (AUTH-03), rồi chuyển hướng: `learner` về `/topics`, `admin` về `/admin`.
-- [ ] Hiển thị lỗi thân thiện cho `INVALID_CREDENTIALS`, `ACCOUNT_LOCKED`, `TOO_MANY_REQUESTS`.
-- [ ] Lỗi `ACCOUNT_NOT_VERIFIED`: hiển thị gợi ý và dẫn tới `/verify-register` kèm email.
-- [ ] Interceptor trong `apiClient`: gặp 401 `TOKEN_EXPIRED` thì gọi `POST /auth/refresh` **một lần**, các request đồng thời chờ chung kết quả đó, rồi gửi lại request ban đầu. Refresh thất bại thì xóa token và về `/login`.
+- [x] Trang `LoginPage` (`/login`): email, mật khẩu, nút đăng nhập, link tới quên mật khẩu và đăng ký.
+- [x] Gọi API, lưu **chỉ** `accessToken` và `refreshToken` qua `tokenStorage` (không lưu `idToken`).
+- [x] Sau khi đăng nhập gọi `GET /api/v1/users/me` (AUTH-03), rồi chuyển hướng: `learner` về `/topics`, `admin` về `/admin`.
+- [x] Hiển thị lỗi thân thiện cho `INVALID_CREDENTIALS`, `ACCOUNT_LOCKED`, `TOO_MANY_REQUESTS`.
+- [x] Lỗi `ACCOUNT_NOT_VERIFIED`: hiển thị gợi ý và dẫn tới `/verify-register` kèm email.
+- [x] Interceptor trong `apiClient`: gặp 401 `TOKEN_EXPIRED` thì gọi `POST /auth/refresh` **một lần**, các request đồng thời chờ chung kết quả đó, rồi gửi lại request ban đầu. Refresh thất bại thì xóa token và về `/login`.
 
 ### Endpoints (API contract do backend cung cấp)
 
@@ -1489,3 +1489,5 @@ src/features/admin/configs/
 ├── pages/AdminGameConfigPage.tsx
 └── types/adminGameConfig.types.ts
 ```
+
+

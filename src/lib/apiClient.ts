@@ -1,4 +1,4 @@
-import axios, {
+﻿import axios, {
   AxiosError,
   type InternalAxiosRequestConfig,
 } from 'axios';
@@ -60,10 +60,21 @@ apiClient.interceptors.response.use(
     const status = error.response?.status;
     const errorData = error.response?.data;
     const errorCode = errorData?.errorCode;
+    const requestUrl = originalRequest?.url || '';
+
+    // Không kích hoạt cơ chế refresh token hoặc session expired cho các endpoint công khai auth
+    const isAuthEndpoint =
+      requestUrl.includes('/auth/login') ||
+      requestUrl.includes('/auth/register') ||
+      requestUrl.includes('/auth/confirm-register') ||
+      requestUrl.includes('/auth/resend-code') ||
+      requestUrl.includes('/auth/refresh');
 
     // Kiểm tra nếu là lỗi hết hạn token (TOKEN_EXPIRED hoặc 401 khi đã có token)
     const isTokenExpired =
-      status === 401 && (errorCode === 'TOKEN_EXPIRED' || tokenStorage.hasAccessToken());
+      !isAuthEndpoint &&
+      status === 401 &&
+      (errorCode === 'TOKEN_EXPIRED' || tokenStorage.hasAccessToken());
 
     if (originalRequest && isTokenExpired && !originalRequest._retry) {
       const refreshToken = tokenStorage.getRefreshToken();
@@ -108,6 +119,7 @@ apiClient.interceptors.response.use(
         );
 
         const newTokens = refreshResponse.data.data;
+        // TUYỆT ĐỐI CHỈ LƯU accessToken & refreshToken, KHÔNG LƯU idToken
         tokenStorage.setAccessToken(newTokens.accessToken);
         if (newTokens.refreshToken) {
           tokenStorage.setRefreshToken(newTokens.refreshToken);
@@ -142,8 +154,8 @@ apiClient.interceptors.response.use(
       }
     }
 
-    // Các lỗi 401 khác mà không thể refresh
-    if (status === 401 && !originalRequest?._retry) {
+    // Các lỗi 401 khác mà không thể refresh (ngoại trừ các endpoint auth công khai)
+    if (!isAuthEndpoint && status === 401 && !originalRequest?._retry) {
       tokenStorage.notifyUnauthorized();
       if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/login')) {
         window.location.href = '/login?sessionExpired=true';
