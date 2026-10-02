@@ -1,43 +1,89 @@
-import React from 'react';
-import { BookOpen, Sparkles, ArrowRight } from 'lucide-react';
-import { Link } from 'react-router-dom';
+﻿import React from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Users, Utensils, Dumbbell, Heart, Sparkles } from 'lucide-react';
+import { PageHeading } from '../../../components/common/PageHeading';
+import { TopicCard } from '../../../components/common/TopicCard';
+import { useToast } from '../../../app/providers/useToast';
+
+const topicsData = [
+  {
+    title: 'Gia đình',
+    english: 'Family',
+    icon: Users,
+    color: 'lavender' as const,
+    lessons: '8 bài học',
+    id: 1,
+  },
+  {
+    title: 'Đồ ăn',
+    english: 'Food',
+    icon: Utensils,
+    color: 'peach' as const,
+    lessons: '10 bài học',
+    id: 2,
+  },
+  {
+    title: 'Thể thao',
+    english: 'Sports',
+    icon: Dumbbell,
+    color: 'blue' as const,
+    lessons: '8 bài học',
+    id: 3,
+  },
+  {
+    title: 'Cảm xúc',
+    english: 'Feelings',
+    icon: Heart,
+    color: 'pink' as const,
+    lessons: '6 bài học',
+    id: 4,
+  },
+];
 
 export const TopicListPage: React.FC = () => {
-  const sampleTopics = [
-    { id: 1, name: 'Animals', description: 'Động vật quen thuộc (cat, dog, bird...)', words: 15 },
-    { id: 2, name: 'Fruits', description: 'Trái cây ngon miệng (apple, banana, grape...)', words: 12 },
-    { id: 3, name: 'School', description: 'Dụng cụ học tập (book, pencil, ruler...)', words: 18 },
-  ];
+  const navigate = useNavigate();
+  const { success } = useToast();
+
+  const handleSelectTopic = (topicName: string, topicId: number) => {
+    success(`Đã chọn chủ đề: ${topicName}. Bắt đầu phiên học cử chỉ tay!`, 'TOPIC-01');
+    navigate(`/game/session-${topicId}`);
+  };
 
   return (
-    <div className="page-wrapper">
-      <div className="page-header-box">
-        <div className="page-title-row">
-          <BookOpen className="text-primary" size={28} />
-          <h1 className="page-title">Danh sách Chủ đề (TOPIC-01)</h1>
-        </div>
-        <p className="page-subtitle">Chọn một chủ đề để bắt đầu học từ vựng hoặc tham gia game thử thách</p>
-      </div>
+    <div style={{ padding: '2rem 0' }}>
+      <PageHeading
+        eyebrow="TOPIC-01 / Danh sách Chủ đề"
+        title="Bạn muốn nói về gì?"
+        description="Chọn một chủ đề bất kỳ để bắt đầu luyện phát âm và ghép từ bằng nhận diện cử chỉ bàn tay qua webcam."
+      />
 
-      <div className="grid-3-col">
-        {sampleTopics.map((topic) => (
-          <div key={topic.id} className="card-item">
-            <h3 className="card-item-title">{topic.name}</h3>
-            <p className="card-item-desc">{topic.description}</p>
-            <div className="card-item-footer">
-              <span className="badge badge-info">{topic.words} từ</span>
-              <Link to={`/game/session-demo-${topic.id}`} className="btn btn-primary btn-sm">
-                <span>Chơi ngay</span>
-                <ArrowRight size={14} />
-              </Link>
-            </div>
-          </div>
+      <div className="cards-grid-4" style={{ marginTop: '2.5rem' }}>
+        {topicsData.map((item, i) => (
+          <TopicCard
+            key={item.title}
+            {...item}
+            index={i}
+            onClick={() => handleSelectTopic(item.title, item.id)}
+          />
         ))}
       </div>
 
-      <div className="alert alert-info mt-6">
-        <Sparkles size={18} />
-        <span>Tầng router và layout hoạt động trơn tru. Sẵn sàng gọi GET /api/v1/topics ở issue TOPIC-01.</span>
+      {/* Note about AWS Polly and API integration */}
+      <div
+        className="card-pastel bg-pastel-yellow"
+        style={{
+          marginTop: '3.5rem',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '1rem',
+          padding: '1.25rem 1.75rem',
+          borderRadius: '24px',
+        }}
+      >
+        <Sparkles size={24} color="#8e641d" />
+        <p style={{ fontSize: '0.925rem', color: '#8e641d', fontWeight: 600 }}>
+          Sẵn sàng kết nối API Backend <code>GET /api/v1/topics</code> (TOPIC-01) và phát âm chuẩn bản xứ qua AWS Polly (AUDIO-01).
+        </p>
       </div>
     </div>
   );

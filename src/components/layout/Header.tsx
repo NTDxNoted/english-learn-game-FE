@@ -1,7 +1,9 @@
-import React from 'react';
+﻿import React from 'react';
 import { NavLink, Link, useNavigate } from 'react-router-dom';
 import {
-  Gamepad2,
+  Hand,
+  Flame,
+  CircleHelp,
   BookOpen,
   Trophy,
   BarChart2,
@@ -15,11 +17,11 @@ import { useToast } from '../../app/providers/useToast';
 
 export const Header: React.FC = () => {
   const navigate = useNavigate();
-  const { success } = useToast();
+  const { success, info } = useToast();
   const isLoggedIn = tokenStorage.hasAccessToken();
 
   const handleLogout = () => {
-    tokenStorage.removeAccessToken();
+    tokenStorage.clearTokens();
     success('Bạn đã đăng xuất thành công', 'Đăng xuất');
     navigate('/login');
   };
@@ -27,70 +29,94 @@ export const Header: React.FC = () => {
   return (
     <header className="app-header">
       <div className="header-container">
-        <Link to="/" className="brand-logo">
-          <div className="logo-icon-badge">
-            <Gamepad2 size={24} />
+        {/* Brand Logo */}
+        <Link to="/" className="brand-logo" aria-label="Signly - Về trang chủ">
+          <div className="logo-badge">
+            <Hand size={22} className="stroke-[2.2]" />
           </div>
-          <span className="brand-name">
-            English<span className="brand-accent">Quest</span>
+          <span className="font-display text-xl font-bold tracking-tight">
+            Sign<span className="brand-accent">ly</span>
           </span>
         </Link>
 
-        <nav className="header-nav">
+        {/* Navigation links */}
+        <nav className="header-nav" aria-label="Điều hướng chính">
+          <NavLink
+            to="/"
+            end
+            className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
+          >
+            <span>Khám phá</span>
+          </NavLink>
+
           <NavLink
             to="/topics"
             className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
           >
-            <BookOpen size={18} />
-            <span>Chủ đề học</span>
+            <BookOpen size={16} />
+            <span>Chủ đề</span>
           </NavLink>
 
           <NavLink
             to="/progress"
             className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
           >
-            <BarChart2 size={18} />
-            <span>Tiến trình & Streak</span>
+            <BarChart2 size={16} />
+            <span>Tiến trình</span>
           </NavLink>
 
           <NavLink
             to="/leaderboard"
             className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
           >
-            <Trophy size={18} />
-            <span>Bảng xếp hạng</span>
+            <Trophy size={16} />
+            <span>Xếp hạng</span>
           </NavLink>
 
           <NavLink
             to="/admin/topics"
-            className={({ isActive }) => `nav-link admin-nav-link ${isActive ? 'active' : ''}`}
+            className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
           >
-            <ShieldCheck size={18} />
-            <span>Quản trị</span>
+            <ShieldCheck size={16} />
+            <span>Admin</span>
           </NavLink>
         </nav>
 
+        {/* Right side status & action buttons */}
         <div className="header-actions">
+          {/* Streak pill badge */}
+          <div className="streak-pill" title="Chuỗi ngày học liên tục">
+            <Flame size={16} color="#ff7b62" className="fill-[#ff7b62]" />
+            <span>3 ngày liên tiếp</span>
+          </div>
+
+          <button
+            type="button"
+            className="btn-outline"
+            style={{ borderRadius: '50%', width: '38px', height: '38px', padding: 0 }}
+            onClick={() => info('Signly hỗ trợ học từ vựng bằng cử chỉ bàn tay qua Webcam!', 'Trợ giúp')}
+            aria-label="Trợ giúp"
+          >
+            <CircleHelp size={18} />
+          </button>
+
           {isLoggedIn ? (
-            <div className="user-profile-menu">
-              <span className="user-badge">Learner</span>
-              <button
-                type="button"
-                className="btn btn-outline btn-sm logout-btn"
-                onClick={handleLogout}
-                title="Đăng xuất"
-              >
-                <LogOut size={16} />
-                <span>Đăng xuất</span>
-              </button>
-            </div>
+            <button
+              type="button"
+              className="btn-outline"
+              onClick={handleLogout}
+              title="Đăng xuất"
+            >
+              <LogOut size={16} />
+              <span>Đăng xuất</span>
+            </button>
           ) : (
-            <div className="auth-btn-group">
-              <Link to="/login" className="btn btn-ghost btn-sm">
+            <div className="flex items-center gap-2">
+              <Link to="/login" className="btn-ghost">
                 <LogIn size={16} />
                 <span>Đăng nhập</span>
               </Link>
-              <Link to="/register" className="btn btn-primary btn-sm">
+              <Link to="/register" className="btn-3d btn-sm" style={{ padding: '0.45rem 1rem' }}>
                 <UserPlus size={16} />
                 <span>Đăng ký</span>
               </Link>

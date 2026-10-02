@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate, Link } from 'react-router-dom';
 import { KeyRound, RotateCw, CheckCircle2, AlertCircle } from 'lucide-react';
 import { useToast } from '../../../app/providers/useToast';
@@ -85,7 +85,7 @@ export const VerifyRegisterPage: React.FC = () => {
             />
           </div>
 
-          <button type="submit" className="btn btn-primary w-full mt-2">
+          <button type="submit" className="btn-3d w-full mt-2">
             <CheckCircle2 size={18} />
             <span>Xác nhận kích hoạt tài khoản</span>
           </button>
@@ -123,3 +123,4 @@ export const VerifyRegisterPage: React.FC = () => {
     </div>
   );
 };
+

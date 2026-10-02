@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { LogIn, Sparkles, AlertCircle } from 'lucide-react';
 import { tokenStorage } from '../../../lib/tokenStorage';
@@ -73,7 +73,7 @@ export const LoginPage: React.FC = () => {
             />
           </div>
 
-          <button type="submit" className="btn btn-primary w-full mt-2">
+          <button type="submit" className="btn-3d w-full mt-2">
             <LogIn size={18} />
             <span>Đăng nhập (Sẵn sàng cho AUTH-02)</span>
           </button>
@@ -101,3 +101,4 @@ export const LoginPage: React.FC = () => {
     </div>
   );
 };
+

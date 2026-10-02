@@ -1,12 +1,34 @@
-# English Learning Game - Frontend (V1)
+﻿# English Learning Game (Signly) - Frontend (V1)
 
 Ứng dụng web học từ vựng tiếng Anh tương tác, nhận diện cử chỉ bàn tay qua webcam (MediaPipe Hands), tích hợp các dịch vụ đám mây **AWS (Cognito, Polly, S3)** thông qua Backend API.
 
 ---
 
-## 1. Kiến trúc dịch vụ đám mây AWS trong dự án
+## 1. Thiết Kế & Quy Chuẩn Bảng Màu (Design System & Color Tokens)
 
-Dự án áp dụng mô hình kiến trúc bảo mật chuẩn Enterprise cho ứng dụng Frontend tương tác với AWS:
+Dự án sử dụng **Signly Design System** đồng nhất với các tông màu chuẩn mực:
+- **Tài liệu quy chuẩn chi tiết**: Xem [DESIGN_SYSTEM.md](./DESIGN_SYSTEM.md)
+- **Hằng số màu TypeScript**: [src/theme/colors.ts](./src/theme/colors.ts)
+- **Màu thương hiệu**:
+  - Tím than chủ đạo (Primary): `#322c82`
+  - Đổ bóng 3D của nút (Button Shadow): `#211c61`
+  - Cam san hô điểm nhấn (Accent): `#ff7b62`
+  - Nền toàn bộ ứng dụng (Canvas): `#fbfaf7` (Warm Cream)
+- **Bộ màu pastel bài học**:
+  - Yellow: `#fff0c2` (Dễ)
+  - Lavender: `#ebe9ff` (Gia đình)
+  - Mint: `#d8f1e7` (Trung bình)
+  - Peach: `#ffdcd4` / `#ffe4d8` (Đồ ăn, Khó)
+  - Blue: `#dce9ff` (Thể thao)
+  - Pink: `#ffdce8` (Cảm xúc)
+
+> **LƯU Ý QUAN TRỌNG:** Mọi tính năng phát triển tiếp theo phải sử dụng các màu chuẩn này, không tự ý đưa thêm màu sắc mới lệch tông thiết kế.
+
+---
+
+## 2. Kiến trúc dịch vụ đám mây AWS trong dự án
+
+Dự án áp dụng mô hình kiến trúc bảo mật chuẩn Enterprise:
 
 1. **AWS Cognito User Pool (Xác thực & Quản lý danh tính)**:
    - **Frontend KHÔNG gọi trực tiếp AWS Cognito SDK** và **tuyệt đối KHÔNG chứa AWS Access Key / Secret Key**.
@@ -24,7 +46,7 @@ Dự án áp dụng mô hình kiến trúc bảo mật chuẩn Enterprise cho �
 
 ---
 
-## 2. Yêu cầu hệ thống
+## 3. Yêu cầu hệ thống
 
 - **Node.js**: Phiên bản LTS (`>= 20.x` hoặc `22.x`)
 - **Trình quản lý gói**: `npm` (`>= 10.x`) hoặc `pnpm`
@@ -32,7 +54,7 @@ Dự án áp dụng mô hình kiến trúc bảo mật chuẩn Enterprise cho �
 
 ---
 
-## 3. Hướng dẫn cài đặt và khởi chạy
+## 4. Hướng dẫn cài đặt và khởi chạy
 
 ### Bước 1: Clone kho mã nguồn
 
@@ -55,8 +77,6 @@ Chỉnh sửa giá trị `VITE_API_BASE_URL` trỏ tới địa chỉ Backend AP
 VITE_API_BASE_URL=http://localhost:8080/api/v1
 ```
 
-> **Lưu ý bảo mật:** Mọi biến có tiền tố `VITE_*` đều sẽ được đóng gói vào client bundle và người dùng có thể đọc được. Tuyệt đối **không lưu trữ secret keys hoặc mật khẩu** trong repository này.
-
 ### Bước 3: Cài đặt dependencies
 
 ```bash
@@ -73,7 +93,7 @@ npm run dev
 
 ---
 
-## 4. Các Scripts hữu ích
+## 5. Các Scripts hữu ích
 
 | Lệnh | Ý nghĩa |
 |---|---|
@@ -81,44 +101,3 @@ npm run dev
 | `npm run lint` | Quét kiểm tra lỗi cú pháp và code quality |
 | `npm run build` | Kiểm tra kiểu dữ liệu TypeScript (`tsc -b`) và đóng gói mã nguồn vào thư mục `dist/` |
 | `npm run preview` | Khởi chạy server local để kiểm tra trước bản build sản phẩm (`dist/`) |
-
----
-
-## 5. Cấu trúc thư mục (Feature-based Architecture)
-
-```
-src/
-├── app/                  # Điểm khởi tạo ứng dụng, router, TanStack Query & Toast providers
-├── lib/                  # Axios apiClient chuẩn hóa (tự động refresh token Cognito), tokenStorage
-├── types/                # Types dữ liệu chuẩn (ApiResponse, ApiError, PageResponse, AuthTokens)
-├── components/
-│   ├── layout/           # AppLayout, Header điều hướng (Learner / Admin)
-│   └── common/           # Loading spinner, EmptyState, ErrorState, Toast notification
-├── pages/                # Các trang cấp cao (HomePage, NotFoundPage 404, ErrorPage)
-└── features/             # Các module tính năng theo nghiệp vụ
-    ├── auth/             # Đăng ký & OTP (AUTH-01), Đăng nhập & Refresh (AUTH-02), Quên mật khẩu (AUTH-04)
-    ├── topics/           # Danh sách chủ đề học (TOPIC-01)
-    ├── vocabularies/     # Từ vựng & Phát âm AWS Polly (VOCAB-01, AUDIO-01)
-    ├── game/             # Màn hình chơi và lớp nhận diện cử chỉ MediaPipe (GAME-01..05)
-    ├── progress/         # Tiến trình học và streak (PROGRESS-01)
-    ├── leaderboard/      # Bảng xếp hạng tuần (LEADERBOARD-01)
-    └── admin/            # Quản trị User, Topic, Vocabulary, Game Config (ADMIN-01..04)
-```
-
----
-
-## 6. Quy ước nhánh và Quy trình phát triển (Git Workflow)
-
-- **`main`**: Nhánh chính, mã nguồn luôn ở trạng thái ổn định, sẵn sàng triển khai.
-- **`develop`**: Nhánh tích hợp các tính năng chuẩn bị cho bản phát hành tiếp theo.
-- **Nhánh tính năng**: Tạo từ nhánh `develop` theo quy ước:
-  ```
-  feature/<ID-Issue>-<mô-tả-ngắn>
-  ```
-  *Ví dụ:* `feature/AUTH-01-cognito-register-otp`, `feature/AUDIO-01-polly-speech`.
-- **Pull Request (PR)**:
-  - Khi tạo PR vào `main` hoặc `develop`, GitHub Actions CI sẽ tự động kích hoạt kiểm tra:
-    1. Cài đặt dependencies (`npm ci`).
-    2. Chạy kiểm tra code (`npm run lint`).
-    3. Kiểm tra kiểu dữ liệu TypeScript và build (`npm run build`).
-  - PR chỉ được merge sau khi CI đã pass hoàn toàn (màu xanh).

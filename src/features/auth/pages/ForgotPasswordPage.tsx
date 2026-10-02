@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { HelpCircle, ArrowRight, ArrowLeft } from 'lucide-react';
 import { useToast } from '../../../app/providers/useToast';
@@ -43,7 +43,7 @@ export const ForgotPasswordPage: React.FC = () => {
             />
           </div>
 
-          <button type="submit" className="btn btn-primary w-full mt-2">
+          <button type="submit" className="btn-3d w-full mt-2">
             <span>Tiếp tục đặt lại mật khẩu</span>
             <ArrowRight size={18} />
           </button>
@@ -59,3 +59,4 @@ export const ForgotPasswordPage: React.FC = () => {
     </div>
   );
 };
+

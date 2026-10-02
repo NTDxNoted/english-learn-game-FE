@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { useLocation, useNavigate, Link } from 'react-router-dom';
 import { Lock, CheckCircle2, ArrowLeft } from 'lucide-react';
 import { useToast } from '../../../app/providers/useToast';
@@ -76,7 +76,7 @@ export const ResetPasswordPage: React.FC = () => {
             />
           </div>
 
-          <button type="submit" className="btn btn-primary w-full mt-2">
+          <button type="submit" className="btn-3d w-full mt-2">
             <CheckCircle2 size={18} />
             <span>Xác nhận đặt lại mật khẩu</span>
           </button>
@@ -92,3 +92,4 @@ export const ResetPasswordPage: React.FC = () => {
     </div>
   );
 };
+

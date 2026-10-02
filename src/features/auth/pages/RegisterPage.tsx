@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { UserPlus, Sparkles } from 'lucide-react';
 import { useToast } from '../../../app/providers/useToast';
@@ -67,7 +67,7 @@ export const RegisterPage: React.FC = () => {
             />
           </div>
 
-          <button type="submit" className="btn btn-primary w-full mt-2">
+          <button type="submit" className="btn-3d w-full mt-2">
             <UserPlus size={18} />
             <span>Đăng ký (Sẵn sàng cho AUTH-01)</span>
           </button>
@@ -95,3 +95,4 @@ export const RegisterPage: React.FC = () => {
     </div>
   );
 };
+
