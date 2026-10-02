@@ -1,0 +1,42 @@
+﻿export type UserRole = 'learner' | 'admin';
+export type UserStatus = 'ACTIVE' | 'LOCKED';
+
+export interface UserProfile {
+  id: number;
+  email: string;
+  displayName: string;
+  role: UserRole;
+  status?: UserStatus;
+  currentStreak?: number;
+  createdAt?: string;
+}
+
+export interface AuthTokens {
+  accessToken: string;
+  refreshToken?: string;
+  idToken?: string;
+  tokenType: string;
+  expiresIn: number;
+}
+
+// Request & Response payload cho AUTH-01
+export interface RegisterRequest {
+  email: string;
+  password: string;
+  displayName: string;
+}
+
+export interface RegisterResponseData {
+  email: string;
+  codeDeliveryDestination: string;
+  userConfirmed: boolean;
+}
+
+export interface ConfirmRegisterRequest {
+  email: string;
+  code: string;
+}
+
+export interface ResendCodeRequest {
+  email: string;
+}

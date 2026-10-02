@@ -120,7 +120,7 @@ export const HomePage: React.FC = () => {
 
             <p className="hero-desc">
               Khám phá tiếng Anh theo cách thật tự nhiên — học từ vựng qua cử chỉ bàn tay (MediaPipe
-              AI), chơi vui và tiến bộ mỗi ngày cùng hệ thống bài học chuẩn xác thực AWS Cognito.
+              AI), chơi vui và tiến bộ mỗi ngày cùng hệ thống Signly.
             </p>
 
             <button

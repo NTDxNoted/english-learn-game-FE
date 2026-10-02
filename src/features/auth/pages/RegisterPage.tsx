@@ -1,16 +1,19 @@
 ﻿import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { UserPlus, Sparkles } from 'lucide-react';
+import { RegisterForm } from '../components/RegisterForm';
 import { useToast } from '../../../app/providers/useToast';
 
 export const RegisterPage: React.FC = () => {
   const navigate = useNavigate();
   const { success } = useToast();
 
-  const handleMockRegister = (e: React.FormEvent) => {
-    e.preventDefault();
-    success('Đăng ký thành công! Mã OTP đã được gửi từ AWS Cognito.', 'Xác thực OTP');
-    navigate('/verify-register', { state: { email: 'user1@gmail.com' } });
+  const handleRegisterSuccess = (email: string) => {
+    success(
+      'Đăng ký tài khoản thành công! Vui lòng kiểm tra email để lấy mã xác minh OTP.',
+      'AWS Cognito SignUp',
+    );
+    navigate('/verify-register', { state: { email } });
   };
 
   return (
@@ -24,54 +27,8 @@ export const RegisterPage: React.FC = () => {
           <p className="auth-subtitle">Tạo tài khoản người học để bắt đầu luyện tập</p>
         </div>
 
-        <form onSubmit={handleMockRegister} className="auth-form">
-          <div className="form-group">
-            <label className="form-label" htmlFor="register-email">
-              Email
-            </label>
-            <input
-              id="register-email"
-              type="email"
-              className="form-input"
-              placeholder="user1@gmail.com"
-              defaultValue="learner@gmail.com"
-              required
-            />
-          </div>
-
-          <div className="form-group">
-            <label className="form-label" htmlFor="register-displayName">
-              Tên hiển thị (3-20 ký tự)
-            </label>
-            <input
-              id="register-displayName"
-              type="text"
-              className="form-input"
-              placeholder="John"
-              defaultValue="John"
-              required
-            />
-          </div>
-
-          <div className="form-group">
-            <label className="form-label" htmlFor="register-password">
-              Mật khẩu (Có chữ hoa, thường, số &amp; ký tự đặc biệt)
-            </label>
-            <input
-              id="register-password"
-              type="password"
-              className="form-input"
-              placeholder="••••••••"
-              defaultValue="Password@123"
-              required
-            />
-          </div>
-
-          <button type="submit" className="btn-3d w-full mt-2">
-            <UserPlus size={18} />
-            <span>Đăng ký (Sẵn sàng cho AUTH-01)</span>
-          </button>
-        </form>
+        {/* Form đăng ký tích hợp Zod validation & API Backend / Cognito */}
+        <RegisterForm onSuccess={handleRegisterSuccess} />
 
         <div className="auth-footer">
           <p>
@@ -80,7 +37,7 @@ export const RegisterPage: React.FC = () => {
               Đăng nhập tại đây
             </Link>
           </p>
-          <p className="text-xs text-muted">
+          <p style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)' }}>
             Đã đăng ký nhưng chưa xác minh OTP?{' '}
             <Link to="/verify-register" className="auth-link">
               Nhập mã xác minh tại đây
@@ -88,11 +45,10 @@ export const RegisterPage: React.FC = () => {
           </p>
           <div className="auth-note">
             <Sparkles size={14} className="inline mr-1" />
-            Issue AUTH-01 gọi POST /api/v1/auth/register, Cognito gửi email OTP và chuyển tiếp sang /verify-register.
+            Tài khoản được bảo vệ qua AWS Cognito User Pool. Mã OTP kích hoạt sẽ được gửi tự động qua email.
           </div>
         </div>
       </div>
     </div>
   );
 };
-

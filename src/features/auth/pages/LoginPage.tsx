@@ -49,7 +49,7 @@ export const LoginPage: React.FC = () => {
               type="email"
               className="form-input"
               placeholder="user1@gmail.com"
-              defaultValue="learner@gmail.com"
+              defaultValue=""
               required
             />
           </div>
@@ -68,14 +68,14 @@ export const LoginPage: React.FC = () => {
               type="password"
               className="form-input"
               placeholder="••••••••"
-              defaultValue="Password@123"
+              defaultValue=""
               required
             />
           </div>
 
           <button type="submit" className="btn-3d w-full mt-2">
             <LogIn size={18} />
-            <span>Đăng nhập (Sẵn sàng cho AUTH-02)</span>
+            <span>Đăng nhập</span>
           </button>
         </form>
 
