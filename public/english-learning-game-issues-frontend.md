@@ -523,13 +523,13 @@ Hoàn thiện vòng đời phiên đăng nhập: đăng xuất qua Cognito, lấ
 
 ### Tasklist
 
-- [ ] `AuthProvider`: khi mở ứng dụng, nếu có token thì gọi `GET /users/me` để khôi phục trạng thái đăng nhập, trong lúc chờ hiển thị màn loading. Không có token thì về `/login`.
-- [ ] Nếu `/users/me` trả `USER_NOT_SYNCED`: gọi `POST /auth/sync` rồi gọi lại `/users/me`.
-- [ ] Hook `useAuth()`: `user`, `isAuthenticated`, `login`, `logout`.
-- [ ] `logout`: gọi API, **dù API lỗi vẫn** xóa token, xóa cache TanStack Query và chuyển về `/login`.
-- [ ] `ProtectedRoute` (cần đăng nhập, áp dụng cho Game, Profile, Progress) và `RoleRoute` (cần vai trò `admin`). Learner vào trang admin thì chuyển về `/topics`.
-- [ ] Khi bị đưa về `/login` do hết phiên, giữ lại đường dẫn đang xem để quay lại sau khi đăng nhập.
-- [ ] Nút đăng xuất và tên người dùng trên header.
+- [x] `AuthProvider`: khi mở ứng dụng, nếu có token thì gọi `GET /users/me` để khôi phục trạng thái đăng nhập, trong lúc chờ hiển thị màn loading. Không có token thì về `/login`.
+- [x] Nếu `/users/me` trả `USER_NOT_SYNCED`: gọi `POST /auth/sync` rồi gọi lại `/users/me`.
+- [x] Hook `useAuth()`: `user`, `isAuthenticated`, `login`, `logout`.
+- [x] `logout`: gọi API, **dù API lỗi vẫn** xóa token, xóa cache TanStack Query và chuyển về `/login`.
+- [x] `ProtectedRoute` (cần đăng nhập, áp dụng cho Game, Profile, Progress) và `RoleRoute` (cần vai trò `admin`). Learner vào trang admin thì chuyển về `/topics`.
+- [x] Khi bị đưa về `/login` do hết phiên, giữ lại đường dẫn đang xem để quay lại sau khi đăng nhập.
+- [x] Nút đăng xuất và tên người dùng trên header.
 
 ### Endpoints (API contract do backend cung cấp)
 
@@ -602,10 +602,10 @@ Người dùng quên mật khẩu nhập email, backend gọi Cognito `ForgotPas
 
 ### Tasklist
 
-- [ ] `ForgotPasswordPage` (`/forgot-password`): nhập email, hiển thị "Nếu email tồn tại, chúng tôi đã gửi mã xác minh", rồi chuyển sang `/reset-password` kèm email.
-- [ ] `ResetPasswordPage` (`/reset-password`): email (điền sẵn), mã OTP, mật khẩu mới và nhập lại. Nếu không có email từ trang trước thì cho nhập.
-- [ ] Thành công: toast và chuyển về `/login`.
-- [ ] Lỗi `OTP_INVALID`, `OTP_EXPIRED`: hiển thị thông báo và link "Yêu cầu mã mới" về `/forgot-password`. Lỗi `WEAK_PASSWORD` hiển thị tại ô mật khẩu.
+- [x] `ForgotPasswordPage` (`/forgot-password`): nhập email, hiển thị "Nếu email tồn tại, chúng tôi đã gửi mã xác minh", rồi chuyển sang `/reset-password` kèm email.
+- [x] `ResetPasswordPage` (`/reset-password`): email (điền sẵn), mã OTP, mật khẩu mới và nhập lại. Nếu không có email từ trang trước thì cho nhập.
+- [x] Thành công: toast và chuyển về `/login`.
+- [x] Lỗi `OTP_INVALID`, `OTP_EXPIRED`: hiển thị thông báo và link "Yêu cầu mã mới" về `/forgot-password`. Lỗi `WEAK_PASSWORD` hiển thị tại ô mật khẩu.
 
 ### Endpoints (API contract do backend cung cấp)
 
@@ -1489,5 +1489,6 @@ src/features/admin/configs/
 ├── pages/AdminGameConfigPage.tsx
 └── types/adminGameConfig.types.ts
 ```
+
 
 

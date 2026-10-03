@@ -1,4 +1,4 @@
-import { createBrowserRouter } from 'react-router-dom';
+﻿import { createBrowserRouter } from 'react-router-dom';
 import { AppLayout } from '../components/layout/AppLayout';
 import { HomePage } from '../pages/HomePage';
 import { NotFoundPage } from '../pages/NotFoundPage';
@@ -8,6 +8,7 @@ import { RegisterPage } from '../features/auth/pages/RegisterPage';
 import { VerifyRegisterPage } from '../features/auth/pages/VerifyRegisterPage';
 import { ForgotPasswordPage } from '../features/auth/pages/ForgotPasswordPage';
 import { ResetPasswordPage } from '../features/auth/pages/ResetPasswordPage';
+import { ProtectedRoute } from '../features/auth/components/ProtectedRoute';
 import { TopicListPage } from '../features/topics/pages/TopicListPage';
 import { GameSessionPage } from '../features/game/pages/GameSessionPage';
 import { ProgressPage } from '../features/progress/pages/ProgressPage';
@@ -25,24 +26,40 @@ export const router = createBrowserRouter([
         index: true,
         element: <HomePage />,
       },
-      // Learner routes
+      // Learner routes (Được bảo vệ bởi ProtectedRoute)
       {
         path: 'topics',
-        element: <TopicListPage />,
+        element: (
+          <ProtectedRoute>
+            <TopicListPage />
+          </ProtectedRoute>
+        ),
       },
       {
         path: 'game/:sessionId',
-        element: <GameSessionPage />,
+        element: (
+          <ProtectedRoute>
+            <GameSessionPage />
+          </ProtectedRoute>
+        ),
       },
       {
         path: 'progress',
-        element: <ProgressPage />,
+        element: (
+          <ProtectedRoute>
+            <ProgressPage />
+          </ProtectedRoute>
+        ),
       },
       {
         path: 'leaderboard',
-        element: <LeaderboardPage />,
+        element: (
+          <ProtectedRoute>
+            <LeaderboardPage />
+          </ProtectedRoute>
+        ),
       },
-      // Admin routes
+      // Admin routes (Giữ nguyên hiện trạng)
       {
         path: 'admin',
         children: [
