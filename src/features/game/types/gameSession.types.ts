@@ -8,6 +8,35 @@ export interface BackendGameQuestion {
   scrambledLetters: string[];
 }
 
+export interface BackendGameResumeQuestion {
+  vocabularyId: number;
+  meaningVi: string;
+  scrambledLetters: string[];
+  topicPosition?: number;
+  status?: string;
+  attemptsUsed?: number;
+  correctlyAnswered?: boolean;
+}
+
+export interface BackendGameSessionResumeResponse {
+  sessionId: number;
+  topicId: number;
+  topicName?: string;
+  mode?: GameMode;
+  status: string;
+  batchStartPosition?: number;
+  batchEndPosition?: number;
+  questionCount?: number;
+  score?: number;
+  resolvedQuestions?: number;
+  currentVocabularyId?: number;
+  maxAttemptsPerWord?: number;
+  currentAttemptsUsed?: number;
+  remainingAttempts?: number;
+  startedAt?: string;
+  questions: BackendGameResumeQuestion[];
+}
+
 export interface BackendGameSessionResponse {
   sessionId: number;
   topicId: number;
@@ -60,6 +89,8 @@ export interface GameSessionData {
   maxAttemptPerWord: number;
   sessionTimeoutMinutes: number;
   words: GameSessionWord[];
+  initialWordIndex?: number;
+  currentScore?: number;
 }
 
 export interface SubmitAttemptRequest {

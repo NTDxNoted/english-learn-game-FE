@@ -1,4 +1,4 @@
-﻿import React from 'react';
+import React from 'react';
 
 interface LetterTileProps {
   id: string;
@@ -36,6 +36,7 @@ export const LetterTile: React.FC<LetterTileProps> = ({
       type="button"
       id={`tile-${id}`}
       data-id={id}
+      data-letter={letter}
       className={classes}
       onClick={onClick}
       onPointerDown={onPointerDown}
