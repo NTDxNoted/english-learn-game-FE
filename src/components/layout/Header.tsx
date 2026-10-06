@@ -1,4 +1,4 @@
-﻿import React from 'react';
+import React from 'react';
 import { NavLink, Link, useNavigate } from 'react-router-dom';
 import {
   Hand,
@@ -10,7 +10,8 @@ import {
   LogOut,
   LogIn,
   UserPlus,
-  User,
+  GraduationCap,
+  Crown,
 } from 'lucide-react';
 import { useAuth } from '../../features/auth/hooks/useAuth';
 import { useToast } from '../../app/providers/useToast';
@@ -98,34 +99,18 @@ export const Header: React.FC = () => {
 
           {isAuthenticated ? (
             <div className="flex items-center gap-3">
-              {/* Thông tin người dùng */}
+              {/* Thông tin người dùng với border sắc nét và avatar sinh động */}
               <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.5rem',
-                  padding: '0.35rem 0.75rem',
-                  borderRadius: 'var(--radius-pill)',
-                  backgroundColor: 'var(--color-pastel-lavender)',
-                  color: 'var(--color-brand-primary)',
-                  fontSize: '0.875rem',
-                  fontWeight: 700,
-                }}
-                title={user?.email || 'Người học'}
+                className="user-profile-pill"
+                title={`${user?.displayName || 'Người học'} (${user?.email || ''})`}
               >
-                <div
-                  style={{
-                    width: '24px',
-                    height: '24px',
-                    borderRadius: '50%',
-                    backgroundColor: 'var(--color-brand-primary)',
-                    color: '#ffffff',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}
-                >
-                  <User size={14} />
+                <div className="user-avatar-badge">
+                  {user?.role === 'admin' ? (
+                    <Crown size={15} className="stroke-[2.4]" />
+                  ) : (
+                    <GraduationCap size={16} className="stroke-[2.3]" />
+                  )}
+                  <span className="user-status-dot" title="Tài khoản đang hoạt động" />
                 </div>
                 <span>{user?.displayName || 'Người học'}</span>
               </div>
