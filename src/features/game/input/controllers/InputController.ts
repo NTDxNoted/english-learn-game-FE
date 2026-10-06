@@ -1,4 +1,4 @@
-﻿export type InputMode = 'gesture' | 'mouse';
+export type InputMode = 'gesture' | 'mouse';
 
 export interface CursorPosition {
   x: number;
@@ -6,7 +6,14 @@ export interface CursorPosition {
   handId?: number;
 }
 
+export interface TileDropEvent {
+  tileId: string;
+  letter: string;
+  slotIndex: number;
+}
+
 export interface InputControllerEvents {
+  onTileDrop?: (drop: TileDropEvent) => void;
   onCursorMove?: (cursor: CursorPosition) => void;
   onTileGrab?: (cursor: CursorPosition) => void;
   onTileRelease?: (cursor: CursorPosition) => void;
