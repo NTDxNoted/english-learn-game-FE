@@ -2,13 +2,14 @@
 
 Khi làm việc với các task lập trình trong Antigravity IDE:
 
-1. **Implementation Plan là "Single Source of Truth" (Căn cứ kỹ thuật duy nhất)**:
-   - Trước mỗi issue / tính năng lớn, kế hoạch triển khai chi tiết (`<feature>_implementation_plan.md`) luôn được lập ra trước với đầy đủ kiến trúc, phân tích mã nguồn tham khảo, cấu trúc thư mục và logic nghiệp vụ.
-   - Khi tiếp tục công việc (sau compaction hoặc qua phiên mới), báo cáo tiến độ, cập nhật tài liệu hoặc kiểm tra thay đổi: **AI BẮT BUỘC phải đọc lại Implementation Plan artifact tương ứng trước tiên**.
+1. **Đọc Implementation Plan (.md) luôn nhanh và đầy đủ hơn `git diff`**:
+   - Trước mỗi issue / tính năng lớn, một kế hoạch triển khai chi tiết (`<feature>_implementation_plan.md`) luôn được phân tích và lưu trữ.
+   - Tài liệu Implementation Plan (.md) cung cấp bức tranh toàn cảnh: giải pháp kiến trúc, công thức toán học, cấu trúc file và logic nghiệp vụ theo cấu trúc mạch lạc. Đọc file markdown này nhanh hơn, tiết kiệm token hơn và nắm trọn vẹn ngữ cảnh hơn nhiều so với việc phải dò từng dòng trong output của `git diff`.
+   - **BẮT BUỘC**: Khi tiếp tục công việc (sau compaction hoặc chuyển phiên), báo cáo tiến độ, cập nhật tài liệu hoặc kiểm tra lại các tính năng đã làm, AI phải mở và đọc lại Implementation Plan artifact tương ứng trước tiên.
 
-2. **Cấm lạm dụng `git diff` để mò mẫm code**:
-   - KHÔNG ĐƯỢC chạy hàng loạt lệnh `git diff` rời rạc để suy đoán hoặc tái khám phá xem mình đã viết gì, vì toàn bộ giải pháp kiến trúc, quyết định kỹ thuật và danh sách file đã nằm đầy đủ trong Implementation Plan.
-   - Chỉ dùng `git diff` ở bước cuối cùng với mục đích duy nhất: kiểm tra lại định dạng trước khi commit.
+2. **Vai trò đúng của `git diff`**:
+   - Vẫn được phép sử dụng `git diff` khi cần kiểm tra cụ thể từng dòng code đã sửa hoặc rà soát định dạng (formatting/linting) ngay trước khi commit.
+   - Tuy nhiên, không dùng `git diff` làm phương thức chính để "tái khám phá" kiến trúc hay tìm hiểu lại những gì đã thực hiện.
 
 3. **Đồng bộ hóa báo cáo từ Implementation Plan**:
-   - Khi làm báo cáo Pull Request (như `PULL_REQUEST_NOTES.md`) hoặc cập nhật tài liệu issue (như `english-learning-game-issues-frontend.md`), AI phải lấy trực tiếp các giải pháp kỹ thuật, công thức toán học, cấu trúc file từ Implementation Plan đã lập để cập nhật vào tài liệu, tránh báo cáo hời hợt hoặc thiếu thông tin.
+   - Khi viết báo cáo Pull Request (như `PULL_REQUEST_NOTES.md`) hoặc cập nhật tài liệu issue (như `english-learning-game-issues-frontend.md`), AI phải trích xuất trực tiếp các giải pháp kỹ thuật, công thức toán học và sơ đồ từ Implementation Plan để nội dung báo cáo luôn sâu sắc, chuẩn xác và không bị thiếu sót.
