@@ -1,53 +1,146 @@
-import React from 'react';
-import { Trophy, Sparkles } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Trophy, Sparkles, Award } from 'lucide-react';
+import { leaderboardApi, type WeeklyLeaderboardData } from '../api/leaderboardApi';
 
 export const LeaderboardPage: React.FC = () => {
-  const topUsers = [
-    { rank: 1, name: 'Nguyễn Văn A', points: 3200, badge: '🥇' },
-    { rank: 2, name: 'Trần Thị B', points: 2850, badge: '🥈' },
-    { rank: 3, name: 'Lê Hoàng C', points: 2600, badge: '🥉' },
-    { rank: 4, name: 'Phạm Minh D', points: 2100, badge: '4' },
-    { rank: 5, name: 'Đỗ Hải E', points: 1950, badge: '5' },
-  ];
+  const [data, setData] = useState<WeeklyLeaderboardData | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchLeaderboard = async () => {
+      try {
+        const res = await leaderboardApi.getWeeklyLeaderboard(10);
+        setData(res.data);
+      } catch (err) {
+        console.error('Không thể tải bảng xếp hạng:', err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchLeaderboard();
+  }, []);
+
+  const entries = data?.entries || [];
+
+  const getRankBadge = (rank: number) => {
+    if (rank === 1) return '🥇';
+    if (rank === 2) return '🥈';
+    if (rank === 3) return '🥉';
+    return `#${rank}`;
+  };
 
   return (
-    <div className="page-wrapper">
-      <div className="page-header-box">
-        <div className="page-title-row">
-          <Trophy className="text-amber-400" size={28} />
-          <h1 className="page-title">Bảng Xếp Hạng Tuần (LEADERBOARD-01)</h1>
+    <div className="page-wrapper" style={{ maxWidth: '800px', margin: '0 auto', padding: '2rem 1rem 4rem' }}>
+      <div className="page-header-box" style={{ marginBottom: '2rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.5rem' }}>
+          <Trophy className="text-amber-400" size={32} color="#f59e0b" />
+          <h1 className="page-title" style={{ fontSize: '1.75rem', fontWeight: 800 }}>Bảng Xếp Hạng Tuần</h1>
         </div>
-        <p className="page-subtitle">Vinh danh các người học có điểm số cao nhất trong tuần</p>
+        <p className="page-subtitle" style={{ color: 'var(--color-text-subtle)' }}>
+          Vinh danh các người học có tổng điểm tích lũy cao nhất trong tuần này
+        </p>
       </div>
 
-      <div className="table-card">
-        <table className="custom-table">
+      {/* Hiển thị thứ hạng của tôi nếu có */}
+      {data?.me && (
+        <div
+          className="card-pastel bg-pastel-mint"
+          style={{
+            padding: '1.25rem 1.5rem',
+            borderRadius: '20px',
+            marginBottom: '1.5rem',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+            <Award size={28} color="#1f7a55" />
+            <div>
+              <div style={{ fontSize: '0.8rem', fontWeight: 700, color: '#1f7a55' }}>VỊ TRÍ CỦA BẠN</div>
+              <div style={{ fontWeight: 800, fontSize: '1.1rem' }}>
+                Hạng #{data.me.rank} ({data.me.displayName})
+              </div>
+            </div>
+          </div>
+          <div style={{ fontSize: '1.35rem', fontWeight: 900, color: '#1f7a55' }}>
+            {data.me.totalScore?.toLocaleString()} pts
+          </div>
+        </div>
+      )}
+
+      <div
+        className="table-card"
+        style={{
+          backgroundColor: '#ffffff',
+          borderRadius: '24px',
+          boxShadow: 'var(--shadow-card, 0 8px 24px rgba(0,0,0,0.05))',
+          overflow: 'hidden',
+          border: '1px solid var(--color-border-subtle, #f0f0f0)',
+        }}
+      >
+        <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
           <thead>
-            <tr>
-              <th style={{ width: '80px' }}>Hạng</th>
-              <th>Người học</th>
-              <th style={{ textAlign: 'right' }}>Điểm số</th>
+            <tr style={{ backgroundColor: '#f9fafb', borderBottom: '1px solid #f0f0f0' }}>
+              <th style={{ padding: '1rem 1.25rem', width: '90px', fontSize: '0.85rem', color: 'var(--color-text-subtle)' }}>HẠNG</th>
+              <th style={{ padding: '1rem 1.25rem', fontSize: '0.85rem', color: 'var(--color-text-subtle)' }}>NGƯỜI HỌC</th>
+              <th style={{ padding: '1rem 1.25rem', textAlign: 'right', fontSize: '0.85rem', color: 'var(--color-text-subtle)' }}>ĐIỂM SỐ</th>
             </tr>
           </thead>
           <tbody>
-            {topUsers.map((user) => (
-              <tr key={user.rank}>
-                <td>
-                  <span className="rank-badge">{user.badge}</span>
-                </td>
-                <td className="font-medium">{user.name}</td>
-                <td style={{ textAlign: 'right' }} className="font-bold text-primary">
-                  {user.points.toLocaleString()} pts
+            {isLoading ? (
+              <tr>
+                <td colSpan={3} style={{ textAlign: 'center', padding: '3rem', color: 'var(--color-text-subtle)' }}>
+                  Đang tải bảng xếp hạng...
                 </td>
               </tr>
-            ))}
+            ) : entries.length === 0 ? (
+              <tr>
+                <td colSpan={3} style={{ textAlign: 'center', padding: '3rem', color: 'var(--color-text-subtle)' }}>
+                  Chưa có dữ liệu bảng xếp hạng cho tuần này.
+                </td>
+              </tr>
+            ) : (
+              entries.map((entry) => (
+                <tr
+                  key={entry.userId}
+                  style={{
+                    borderBottom: '1px solid #f8f8f8',
+                    transition: 'background-color 0.15s ease',
+                  }}
+                >
+                  <td style={{ padding: '1.1rem 1.25rem', fontSize: '1.1rem', fontWeight: 800 }}>
+                    {getRankBadge(Number(entry.rank))}
+                  </td>
+                  <td style={{ padding: '1.1rem 1.25rem', fontWeight: 700 }}>
+                    {entry.displayName}
+                  </td>
+                  <td style={{ padding: '1.1rem 1.25rem', textAlign: 'right', fontWeight: 900, color: 'var(--color-brand-primary)' }}>
+                    {entry.totalScore.toLocaleString()} pts
+                  </td>
+                </tr>
+              ))
+            )}
           </tbody>
         </table>
       </div>
 
-      <div className="alert alert-info mt-6">
-        <Sparkles size={18} />
-        <span>Sẵn sàng kết nối GET /api/v1/leaderboard/weekly ở issue LEADERBOARD-01.</span>
+      <div
+        className="card-pastel bg-pastel-yellow"
+        style={{
+          marginTop: '2rem',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '0.75rem',
+          padding: '1rem 1.5rem',
+          borderRadius: '16px',
+        }}
+      >
+        <Sparkles size={20} color="#b27715" />
+        <span style={{ fontSize: '0.875rem', color: '#8e641d', fontWeight: 600 }}>
+          Bảng xếp hạng được tự động cập nhật lại mỗi thứ Hai hàng tuần. Chúc bạn đạt thứ hạng cao!
+        </span>
       </div>
     </div>
   );
