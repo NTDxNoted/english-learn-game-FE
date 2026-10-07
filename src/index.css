@@ -1,4 +1,4 @@
-﻿/* ==========================================================================
+/* ==========================================================================
    Signly Design System - English Learning Game
    Design Tokens & Unified Theme Standards
    ========================================================================== */
@@ -215,6 +215,61 @@ a {
   color: var(--color-brand-primary);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
   border: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.user-profile-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.35rem 0.95rem 0.35rem 0.45rem;
+  border-radius: var(--radius-full);
+  background: linear-gradient(180deg, #fcfbff 0%, #ebe7ff 100%);
+  border: 2px solid rgba(50, 44, 130, 0.18);
+  box-shadow: 0 3px 0 rgba(50, 44, 130, 0.1), 0 4px 12px rgba(50, 44, 130, 0.04);
+  color: var(--color-brand-primary);
+  font-size: 0.9rem;
+  font-weight: 800;
+  cursor: pointer;
+  user-select: none;
+  transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.user-profile-pill:hover {
+  transform: translateY(-2px);
+  border-color: rgba(50, 44, 130, 0.35);
+  box-shadow: 0 5px 0 rgba(50, 44, 130, 0.16), 0 6px 16px rgba(50, 44, 130, 0.08);
+  background: linear-gradient(180deg, #ffffff 0%, #ebe7ff 100%);
+}
+
+.user-avatar-badge {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #ff7b62 0%, #322c82 100%);
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid #ffffff;
+  box-shadow: 0 2px 6px rgba(50, 44, 130, 0.25);
+  position: relative;
+  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.user-profile-pill:hover .user-avatar-badge {
+  transform: scale(1.08) rotate(-4deg);
+}
+
+.user-status-dot {
+  position: absolute;
+  bottom: -1px;
+  right: -1px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background-color: #22c55e;
+  border: 2px solid #ffffff;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.05);
 }
 
 .app-main-content {
@@ -897,58 +952,111 @@ a {
 }
 
 .game-clue-card {
-  background-color: var(--color-pastel-lavender);
-  border: 1.5px solid var(--color-pastel-lavender-border);
-  border-radius: var(--radius-lg);
-  padding: 1.5rem;
+  background: linear-gradient(135deg, #f0edff 0%, #fff7e6 100%);
+  border: 2px solid rgba(50, 44, 130, 0.12);
+  border-radius: 24px;
+  padding: 1.5rem 1.75rem;
   display: flex;
   align-items: center;
   gap: 1.5rem;
+  box-shadow: 0 10px 24px -6px rgba(50, 44, 130, 0.08);
+  position: relative;
+  overflow: hidden;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.game-clue-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 14px 28px -6px rgba(50, 44, 130, 0.12);
 }
 
 .clue-icon-badge {
   width: 72px;
   height: 72px;
-  border-radius: var(--radius-md);
-  background-color: #ffffff;
+  min-width: 72px;
+  border-radius: 18px;
+  background: #ffffff;
   display: flex;
   align-items: center;
   justify-content: center;
   color: var(--color-brand-primary);
-  box-shadow: 0 4px 12px rgba(50, 44, 130, 0.08);
+  box-shadow: 0 6px 16px rgba(50, 44, 130, 0.12);
+  border: 1.5px solid rgba(50, 44, 130, 0.08);
+  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.game-clue-card:hover .clue-icon-badge {
+  transform: scale(1.06) rotate(-3deg);
+}
+
+/* Responsive Fluid Slots Container */
+.slots-wrapper {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  overflow-x: auto;
+  padding: 1rem 0.5rem 1.5rem;
+  scrollbar-width: none;
+}
+
+.slots-wrapper::-webkit-scrollbar {
+  display: none;
 }
 
 .slots-container {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 0.85rem;
-  flex-wrap: wrap;
-  padding: 1.5rem 0;
+  flex-wrap: nowrap;
+  gap: var(--slot-gap, 0.75rem);
+  transition: all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+  will-change: transform;
 }
 
 .game-slot {
-  width: 68px;
-  height: 76px;
+  width: var(--slot-size, 64px);
+  height: calc(var(--slot-size, 64px) * 1.15);
+  min-width: var(--slot-size, 64px);
   border-radius: var(--radius-md);
-  border: 2.5px dashed rgba(50, 44, 130, 0.28);
-  background-color: rgba(50, 44, 130, 0.02);
+  border: 2.5px dashed rgba(50, 44, 130, 0.22);
+  background: linear-gradient(180deg, rgba(244, 242, 236, 0.7) 0%, rgba(235, 233, 226, 0.9) 100%);
   display: flex;
   align-items: center;
   justify-content: center;
   font-family: var(--font-display);
-  font-size: 2.2rem;
+  font-size: var(--slot-font-size, 2rem);
   font-weight: 900;
   color: var(--color-brand-primary);
-  transition: all 0.15s ease;
+  box-shadow: inset 0 3px 6px rgba(50, 44, 130, 0.08);
+  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), 
+              border-color 0.2s ease, 
+              background-color 0.2s ease, 
+              box-shadow 0.2s ease;
   user-select: none;
+  position: relative;
+  cursor: pointer;
+}
+
+.game-slot:hover:not(.filled) {
+  border-color: rgba(50, 44, 130, 0.45);
+  background: rgba(255, 255, 255, 0.9);
+  transform: translateY(-2px);
 }
 
 .game-slot.filled {
   border-style: solid;
+  border-width: 2.5px;
   border-color: var(--color-brand-primary);
-  background-color: var(--color-pastel-yellow);
-  box-shadow: 0 4px 0 var(--color-pastel-yellow-bubble);
+  background: linear-gradient(180deg, #fff9e6 0%, #ffe9a6 100%);
+  box-shadow: 0 5px 0 var(--color-pastel-yellow-bubble, #dfc067), 0 8px 16px rgba(50, 44, 130, 0.12);
+  transform: translateY(-2px);
+  animation: slotPop 0.28s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.game-slot.filled:hover {
+  transform: translateY(-4px) scale(1.03);
+  box-shadow: 0 7px 0 var(--color-pastel-yellow-bubble, #dfc067), 0 10px 20px rgba(50, 44, 130, 0.16);
 }
 
 .game-slot.targeted,
@@ -956,52 +1064,100 @@ a {
 .game-slot.hand-target-1 {
   border-style: solid;
   border-color: var(--color-brand-accent);
-  outline: 4px solid var(--color-brand-accent);
-  outline-offset: 4px;
-  transform: scale(1.05);
+  background-color: rgba(255, 123, 98, 0.14);
+  box-shadow: 0 0 0 4px rgba(255, 123, 98, 0.35), inset 0 2px 4px rgba(255, 123, 98, 0.2);
+  transform: scale(1.08);
+  animation: pulseTarget 1s infinite alternate ease-in-out;
 }
 
+/* Animations for slots */
+@keyframes slotPop {
+  0% { transform: scale(0.6) translateY(6px); opacity: 0.5; }
+  60% { transform: scale(1.18) translateY(-4px); }
+  100% { transform: scale(1) translateY(-2px); opacity: 1; }
+}
+
+@keyframes pulseTarget {
+  0% { transform: scale(1.04); box-shadow: 0 0 0 3px rgba(255, 123, 98, 0.25); }
+  100% { transform: scale(1.1); box-shadow: 0 0 0 7px rgba(255, 123, 98, 0.45); }
+}
+
+@keyframes wordShake {
+  0%, 100% { transform: translateX(0); }
+  20%, 60% { transform: translateX(-9px) rotate(-1.5deg); }
+  40%, 80% { transform: translateX(9px) rotate(1.5deg); }
+}
+
+@keyframes wordSuccess {
+  0% { transform: translateY(0) scale(1); }
+  35% { transform: translateY(-16px) scale(1.14); }
+  70% { transform: translateY(2px) scale(0.98); }
+  100% { transform: translateY(-2px) scale(1); }
+}
+
+.slots-container.shake-error {
+  animation: wordShake 0.5s ease-in-out;
+}
+
+.slots-container.celebrate-success .game-slot.filled {
+  animation: wordSuccess 0.65s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  background: linear-gradient(180deg, #e8f8f2 0%, #c4edd9 100%) !important;
+  border-color: #1f7a55 !important;
+  box-shadow: 0 5px 0 #185e42, 0 8px 18px rgba(31, 122, 85, 0.2) !important;
+  color: #124d36 !important;
+}
+
+/* Fluid Tiles Container */
 .tiles-container {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 1rem;
+  gap: var(--tile-gap, 0.85rem);
   flex-wrap: wrap;
-  min-height: 90px;
-  padding: 1rem;
-  background-color: #fbfaf7;
+  min-height: 96px;
+  padding: 1.25rem 1rem;
+  background: linear-gradient(180deg, rgba(251, 250, 247, 0.8) 0%, rgba(244, 242, 236, 0.6) 100%);
   border-radius: var(--radius-lg);
-  border: 1.5px dashed rgba(0, 0, 0, 0.08);
+  border: 2px dashed rgba(50, 44, 130, 0.14);
+  box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.02);
+  transition: all 0.3s ease;
 }
 
 .game-tile {
-  width: 68px;
-  height: 68px;
+  width: var(--tile-size, 64px);
+  height: var(--tile-size, 64px);
+  min-width: var(--tile-size, 64px);
   border-radius: var(--radius-md);
-  background-color: #ffffff;
+  background: linear-gradient(180deg, #ffffff 0%, #f6f5ff 100%);
   color: var(--color-brand-primary);
-  border: 2px solid var(--color-brand-primary);
-  box-shadow: 0 6px 0 var(--color-brand-shadow);
+  border: 2.5px solid var(--color-brand-primary);
+  box-shadow: 0 6px 0 var(--color-brand-shadow), 0 8px 16px rgba(50, 44, 130, 0.1);
   display: flex;
   align-items: center;
   justify-content: center;
   font-family: var(--font-display);
-  font-size: 2.1rem;
+  font-size: var(--tile-font-size, 2rem);
   font-weight: 900;
   cursor: grab;
   user-select: none;
   touch-action: none;
-  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  transition: transform 0.18s cubic-bezier(0.34, 1.56, 0.64, 1), 
+              box-shadow 0.18s cubic-bezier(0.34, 1.56, 0.64, 1),
+              opacity 0.2s ease,
+              background 0.2s ease;
+  will-change: transform, box-shadow;
+  position: relative;
 }
 
 .game-tile:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 9px 0 var(--color-brand-shadow);
+  transform: translateY(-5px) scale(1.05);
+  box-shadow: 0 11px 0 var(--color-brand-shadow), 0 14px 24px rgba(50, 44, 130, 0.16);
+  background: linear-gradient(180deg, #ffffff 0%, #ebe8ff 100%);
 }
 
 .game-tile:active {
-  transform: translateY(2px);
-  box-shadow: 0 3px 0 var(--color-brand-shadow);
+  transform: translateY(3px) scale(0.98);
+  box-shadow: 0 2px 0 var(--color-brand-shadow);
   cursor: grabbing;
 }
 
@@ -1010,35 +1166,66 @@ a {
 .game-tile.hand-hover-1 {
   outline: 4px solid var(--color-brand-accent);
   outline-offset: 4px;
-  transform: translateY(-4px);
+  transform: translateY(-6px) scale(1.06);
+  box-shadow: 0 12px 0 var(--color-brand-shadow), 0 0 20px rgba(255, 123, 98, 0.4);
 }
 
 .game-tile.used {
-  visibility: hidden;
-  opacity: 0;
+  opacity: 0.15;
+  filter: grayscale(1);
   pointer-events: none;
+  box-shadow: 0 2px 0 rgba(50, 44, 130, 0.2);
+  transform: translateY(2px) scale(0.92);
+  background-color: #e5e5e5;
+  border-color: #b0b0b0;
 }
 
 .game-tile.drag-source {
-  opacity: 0.25;
+  opacity: 0.3;
 }
 
 .drag-ghost {
   position: fixed;
-  width: 72px;
-  height: 72px;
+  left: 0;
+  top: 0;
+  width: var(--tile-size, 68px);
+  height: var(--tile-size, 68px);
   border-radius: var(--radius-md);
-  background-color: var(--color-pastel-yellow);
+  background: linear-gradient(180deg, #fff9e6 0%, #ffe9a6 100%);
   color: var(--color-brand-primary);
   border: 2.5px solid var(--color-brand-primary);
-  box-shadow: 0 12px 24px -4px rgba(50, 44, 130, 0.35);
+  box-shadow: 0 16px 32px rgba(50, 44, 130, 0.35), 0 6px 0 var(--color-brand-shadow);
   display: flex;
   align-items: center;
   justify-content: center;
   font-family: var(--font-display);
-  font-size: 2.3rem;
+  font-size: var(--tile-font-size, 2.1rem);
   font-weight: 900;
   pointer-events: none;
-  z-index: 60;
-  transform: translate(-50%, -50%);
+  z-index: 9999;
+  transform: translate(-50%, -50%) rotate(4deg);
+  will-change: left, top;
+  transition: none;
+}
+
+.drag-ghost[hidden] {
+  display: none !important;
+}
+
+.hand-ghost-1 {
+  background: linear-gradient(180deg, #d8f1e7 0%, #a3e4cb 100%);
+  border-color: #10b981;
+  color: #134e3a;
+  box-shadow: 0 16px 32px rgba(16, 185, 129, 0.35), 0 6px 0 #19634b;
+}
+
+.game-tile.hand-hover-1 {
+  outline-color: #10b981;
+  box-shadow: 0 12px 0 #19634b, 0 0 20px rgba(16, 185, 129, 0.4);
+}
+
+.game-slot.hand-target-1 {
+  border-color: #10b981;
+  background-color: rgba(16, 185, 129, 0.14);
+  box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.35), inset 0 2px 4px rgba(16, 185, 129, 0.2);
 }
