@@ -29,7 +29,7 @@ export const LoginForm: React.FC = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [unverifiedEmail, setUnverifiedEmail] = useState<string | null>(null);
   const [passwordResetRequired, setPasswordResetRequired] = useState<string | null>(null);
-  const [isLocked, setIsLocked] = useState(false);
+  const [isLocked, setIsLocked] = useState(searchParams.get('accountBlocked') === 'true');
   const [isRateLimited, setIsRateLimited] = useState(false);
   const [generalError, setGeneralError] = useState<string | null>(null);
 
@@ -56,6 +56,7 @@ export const LoginForm: React.FC = () => {
     setIsRateLimited(false);
     setGeneralError(null);
 
+    tokenStorage.notifyUnauthorized();
     try {
       // 1. Gọi backend POST /api/v1/auth/login (Cognito InitiateAuth)
       const response = await authApi.login({
@@ -72,18 +73,10 @@ export const LoginForm: React.FC = () => {
       });
 
       // 3. Tự động đồng bộ tài khoản từ Cognito vào bảng users (PostgreSQL) qua /api/auth/sync
-      let userProfile: UserProfile | undefined;
-      try {
-        const syncRes = await authApi.syncUser();
-        userProfile = syncRes.data;
-      } catch (syncErr) {
-        console.warn('SyncUser gặp lỗi, thử gọi getMe():', syncErr);
-        try {
-          const meRes = await authApi.getMe();
-          userProfile = meRes.data;
-        } catch (meErr) {
-          console.warn('Không thể lấy thông tin profile người dùng:', meErr);
-        }
+      const syncRes = await authApi.syncUser();
+      const userProfile: UserProfile = syncRes.data;
+      if (userProfile.status !== 'ACTIVE') {
+        throw new ApiError({ message: 'Tài khoản không hoạt động.', errorCode: 'ACCOUNT_BLOCKED' }, 403);
       }
 
       // Cập nhật AuthContext state
@@ -93,14 +86,15 @@ export const LoginForm: React.FC = () => {
 
       // 4. Chuyển hướng theo query param redirect hoặc mặc định về /topics
       const redirectUrl = searchParams.get('redirect');
-      if (redirectUrl && !redirectUrl.startsWith('/login')) {
-        navigate(decodeURIComponent(redirectUrl));
+      if (redirectUrl && redirectUrl.startsWith('/') && !redirectUrl.startsWith('//') && !redirectUrl.startsWith('/login')) {
+        navigate(redirectUrl);
       } else if (userProfile?.role === 'admin') {
         navigate('/admin');
       } else {
         navigate('/topics');
       }
     } catch (err: unknown) {
+      tokenStorage.notifyUnauthorized();
       if (err instanceof ApiError) {
         const code = err.errorCode;
 
@@ -115,7 +109,7 @@ export const LoginForm: React.FC = () => {
           return;
         }
 
-        if (code === 'ACCOUNT_LOCKED') {
+        if (code === 'ACCOUNT_BLOCKED') {
           setIsLocked(true);
           return;
         }
@@ -153,7 +147,7 @@ export const LoginForm: React.FC = () => {
   };
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="auth-form" noValidate>
+    <form onSubmit={handleSubmit(onSubmit)} className="auth-form" noValidate aria-busy={isSubmitting}>
       {/* Cảnh báo tài khoản chưa xác minh OTP (ACCOUNT_NOT_VERIFIED) */}
       {unverifiedEmail && (
         <div
@@ -216,7 +210,7 @@ export const LoginForm: React.FC = () => {
         </div>
       )}
 
-      {/* Cảnh báo tài khoản bị khóa (ACCOUNT_LOCKED) */}
+      {/* Cảnh báo tài khoản bị khóa (ACCOUNT_BLOCKED) */}
       {isLocked && (
         <div
           style={{
@@ -294,15 +288,21 @@ export const LoginForm: React.FC = () => {
         </label>
         <input
           id="login-email"
+          required
+          aria-invalid={!!errors.email}
+          aria-describedby={errors.email ? 'login-email-error' : undefined}
           type="email"
-          autoComplete="email"
+          inputMode="email"
+          autoCapitalize="none"
+          spellCheck={false}
+          autoComplete="username"
           className="form-input"
           placeholder="learner@example.com"
           {...register('email')}
           style={errors.email ? { borderColor: 'var(--color-error)' } : undefined}
         />
         {errors.email && (
-          <span style={{ color: 'var(--color-error)', fontSize: '0.8rem', fontWeight: 600 }}>
+          <span id="login-email-error" className="form-error" role="alert" style={{ color: 'var(--color-error)', fontSize: '0.8rem', fontWeight: 600 }}>
             {errors.email.message}
           </span>
         )}
@@ -322,7 +322,6 @@ export const LoginForm: React.FC = () => {
               fontWeight: 700,
               textDecoration: 'none',
             }}
-            tabIndex={-1}
           >
             Quên mật khẩu?
           </Link>
@@ -330,6 +329,9 @@ export const LoginForm: React.FC = () => {
         <div style={{ position: 'relative' }}>
           <input
             id="login-password"
+          required
+          aria-invalid={!!errors.password}
+          aria-describedby={errors.password ? 'login-password-error' : undefined}
             type={showPassword ? 'text' : 'password'}
             autoComplete="current-password"
             className="form-input"
@@ -352,14 +354,16 @@ export const LoginForm: React.FC = () => {
               display: 'flex',
               alignItems: 'center',
             }}
-            tabIndex={-1}
+            className="auth-password-toggle"
+            aria-controls="login-password"
+            aria-pressed={showPassword}
             aria-label={showPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
           >
             {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
           </button>
         </div>
         {errors.password && (
-          <span style={{ color: 'var(--color-error)', fontSize: '0.8rem', fontWeight: 600 }}>
+          <span id="login-password-error" className="form-error" role="alert" style={{ color: 'var(--color-error)', fontSize: '0.8rem', fontWeight: 600 }}>
             {errors.password.message}
           </span>
         )}
