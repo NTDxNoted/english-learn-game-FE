@@ -1,3 +1,4 @@
+let sessionRevision = 0;
 const ACCESS_TOKEN_KEY = 'auth_access_token';
 const REFRESH_TOKEN_KEY = 'auth_refresh_token';
 
@@ -8,6 +9,7 @@ const REFRESH_TOKEN_KEY = 'auth_refresh_token';
  * - Không lưu idToken (backend từ chối idToken làm Bearer)
  */
 export const tokenStorage = {
+  getRevision(): number { return sessionRevision; },
   getAccessToken(): string | null {
     try {
       return localStorage.getItem(ACCESS_TOKEN_KEY);
@@ -48,6 +50,7 @@ export const tokenStorage = {
   },
 
   clearTokens(): void {
+    sessionRevision++;
     try {
       localStorage.removeItem(ACCESS_TOKEN_KEY);
       localStorage.removeItem(REFRESH_TOKEN_KEY);
