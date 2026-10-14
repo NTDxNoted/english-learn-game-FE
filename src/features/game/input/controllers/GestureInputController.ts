@@ -77,6 +77,8 @@ export class GestureInputController implements InputController {
   private ctx: CanvasRenderingContext2D | null = null;
   private stream: MediaStream | null = null;
   private worker: Worker | null = null;
+  private startPromise: Promise<void> | null = null;
+  private cancelWorkerStart: (() => void) | null = null;
 
   private cameraGeneration = 0;
   private framePending = false;
@@ -159,28 +161,46 @@ export class GestureInputController implements InputController {
 
   async start(): Promise<void> {
     if (this.active) return;
+    if (this.startPromise) return this.startPromise;
     if (!navigator.mediaDevices?.getUserMedia) {
       throw new Error('Trình duyệt không hỗ trợ truy cập camera');
     }
+    const generation = ++this.cameraGeneration;
+    const task = this.startCamera(generation);
+    this.startPromise = task;
+    try {
+      await task;
+    } finally {
+      if (this.startPromise === task) this.startPromise = null;
+    }
+  }
 
+  private async startCamera(generation: number): Promise<void> {
     this.events.onStatusChange?.('Đang yêu cầu quyền camera...');
 
     try {
-      this.stream = await navigator.mediaDevices.getUserMedia({
+      const stream = await navigator.mediaDevices.getUserMedia({
         audio: false,
         video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } },
       });
+      if (generation !== this.cameraGeneration) {
+        stream.getTracks().forEach((track) => track.stop());
+        return;
+      }
+      this.stream = stream;
 
       if (this.video) {
-        this.video.srcObject = this.stream;
+        this.video.srcObject = stream;
         await this.video.play();
       }
+      if (generation !== this.cameraGeneration) return;
 
       this.events.onStatusChange?.('Đang tải mô hình nhận diện tay...');
       await this.initWorker();
+      if (generation !== this.cameraGeneration) return;
 
       this.active = true;
-      const gen = ++this.cameraGeneration;
+      const gen = generation;
       this.framePending = false;
       this.lastCaptureAt = 0;
       this.lastVideoTime = -1;
@@ -195,6 +215,7 @@ export class GestureInputController implements InputController {
       this.events.onStatusChange?.('Đưa bàn tay vào khung hình để bắt đầu');
       requestAnimationFrame((now) => this.loop(now, gen));
     } catch (err: unknown) {
+      if (generation !== this.cameraGeneration) return;
       this.stop();
       throw err;
     }
@@ -203,6 +224,9 @@ export class GestureInputController implements InputController {
   stop(): void {
     this.active = false;
     this.cameraGeneration++;
+    this.startPromise = null;
+    this.cancelWorkerStart?.();
+    this.cancelWorkerStart = null;
     window.removeEventListener('resize', this.handleResize);
 
     if (this.worker) {
@@ -246,12 +270,21 @@ export class GestureInputController implements InputController {
     return new Promise((resolve, reject) => {
       const worker = new Worker('/workers/hand-worker.js');
       this.worker = worker;
-      const timeout = setTimeout(() => reject(new Error('Tải mô hình nhận diện tay quá hạn (timeout)')), 25000);
+      let ready = false;
+      const fail = (error: Error) => {
+        clearTimeout(timeout);
+        this.cancelWorkerStart = null;
+        reject(error);
+      };
+      const timeout = setTimeout(() => fail(new Error('Tải mô hình nhận diện tay quá hạn (timeout)')), 25000);
+      this.cancelWorkerStart = () => fail(new DOMException('Đã hủy bật camera', 'AbortError'));
 
       worker.onmessage = ({ data }: MessageEvent) => {
         if (worker !== this.worker) return;
         if (data.type === 'ready') {
           clearTimeout(timeout);
+          this.cancelWorkerStart = null;
+          ready = true;
           resolve();
           return;
         }
@@ -265,14 +298,18 @@ export class GestureInputController implements InputController {
         if (data.type === 'error') {
           clearTimeout(timeout);
           this.framePending = false;
-          this.events.onError?.(data.message || 'Lỗi nhận diện');
+          const message = data.message || 'Lỗi nhận diện';
+          if (ready) this.events.onError?.(message);
+          else fail(new Error(message));
         }
       };
 
       worker.onerror = (ev) => {
         clearTimeout(timeout);
         this.framePending = false;
-        reject(new Error(ev.message || 'Lỗi Worker nhận diện'));
+        const message = ev.message || 'Lỗi Worker nhận diện';
+        if (ready) this.events.onError?.(message);
+        else fail(new Error(message));
       };
 
       worker.postMessage({ type: 'init' });

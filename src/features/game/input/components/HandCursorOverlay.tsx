@@ -1,4 +1,4 @@
-﻿import React from 'react';
+import React from 'react';
 
 interface HandCursorOverlayProps {
   canvasRef: React.RefObject<HTMLCanvasElement | null>;
@@ -6,12 +6,13 @@ interface HandCursorOverlayProps {
 }
 
 export const HandCursorOverlay: React.FC<HandCursorOverlayProps> = ({ canvasRef, isGestureMode }) => {
-  if (!isGestureMode) return null;
+
 
   return (
     <canvas
       ref={canvasRef}
       style={{
+        display: isGestureMode ? undefined : 'none',
         position: 'fixed',
         inset: 0,
         width: '100vw',
@@ -23,3 +24,4 @@ export const HandCursorOverlay: React.FC<HandCursorOverlayProps> = ({ canvasRef,
     />
   );
 };
+
