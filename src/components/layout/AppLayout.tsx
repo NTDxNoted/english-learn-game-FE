@@ -1,4 +1,5 @@
 ﻿import React from 'react';
+import { CircleCheck } from 'lucide-react';
 import { Outlet } from 'react-router-dom';
 import { Header } from './Header';
 import { ToastContainer } from '../common/Toast';
@@ -8,8 +9,9 @@ const CURRENT_YEAR = new Date().getFullYear();
 export const AppLayout: React.FC = () => {
   return (
     <div className="app-shell">
+      <a className="skip-link" href="#main-content">Bỏ qua điều hướng</a>
       <Header />
-      <main className="app-main-content">
+      <main id="main-content" className="app-main-content" tabIndex={-1}>
         <div className="content-container">
           <Outlet />
         </div>
@@ -19,19 +21,7 @@ export const AppLayout: React.FC = () => {
           <p>
             © {CURRENT_YEAR} Signly — Học tiếng Anh bằng đôi tay. Tương tác cử chỉ MediaPipe &amp; AWS Cloud.
           </p>
-          <div className="flex items-center gap-2">
-            <span
-              style={{
-                width: '8px',
-                height: '8px',
-                borderRadius: '50%',
-                backgroundColor: '#10b981',
-                display: 'inline-block',
-              }}
-            />
-            <span style={{ fontSize: '0.8rem', fontWeight: 600, color: '#322c82' }}>
-              Signly V1.0 (Design System Active)
-            </span>
+          <div className="ui-footer-status"><CircleCheck size={16} aria-hidden="true" /><span>Signly · Học từ vựng qua tương tác</span>
           </div>
         </div>
       </footer>
