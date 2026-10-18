@@ -292,7 +292,7 @@ function GamePlay({ initialSession }: { initialSession: GameSessionData }) {
     </div>
     <CameraPreview videoRef={input.videoRef} statusText={input.statusText} fps={input.fps} isGestureMode={input.mode === 'gesture' && !isFinished} onSwitchToMouse={() => void input.switchMode('mouse')} />
     <HandCursorOverlay canvasRef={input.canvasRef} isGestureMode={input.mode === 'gesture' && !isFinished} />
-    <GameResultModal isOpen={isFinished} result={displayedResult} isLoading={isSyncing} error={sessionError} isRestarting={isRestarting} onRetry={() => void recoverSession()} onPlayAgain={() => void handleRestart()} onBackToTopics={() => navigate('/topics')} />
+    <GameResultModal isOpen={isFinished} result={displayedResult} isLoading={isSyncing} error={sessionError} isRestarting={isRestarting} onRetry={() => void recoverSession()} onPlayAgain={() => void handleRestart()} onLearnNextBatch={() => navigate(`/topics/${session.topicId}/learn`)} onBackToTopics={() => navigate('/topics')} />
   </div>;
 }
 
@@ -321,7 +321,7 @@ export function GameSessionPage() {
   </div>;
   if (game.data.kind === 'history') {
     const history = game.data;
-    return <GameResultModal isOpen result={{ ...history.result, currentStreak: streak.data?.currentStreak ?? null }} onPlayAgain={() => navigate(`/game/new?topicId=${history.topicId}&mode=${history.mode}`)} onBackToTopics={() => navigate('/topics')} />;
+    return <GameResultModal isOpen result={{ ...history.result, currentStreak: streak.data?.currentStreak ?? null }} onPlayAgain={() => navigate(`/game/new?topicId=${history.topicId}&mode=${history.mode}`)} onLearnNextBatch={() => navigate(`/topics/${history.topicId}/learn`)} onBackToTopics={() => navigate('/topics')} />;
   }
   return <GamePlay key={game.data.session.sessionId} initialSession={game.data.session} />;
 }

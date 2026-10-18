@@ -24,6 +24,9 @@ export async function loadGameRoute(sessionId: string | undefined, topicParam: s
   if (modeParam && !['CHECKPOINT', 'FREE_PLAY', 'REVIEW'].includes(modeParam)) throw new Error('Chế độ chơi không hợp lệ.');
   const mode = (modeParam || 'FREE_PLAY') as GameMode;
   const { data: active } = await gameSessionApi.getActiveSession(topicId);
-  if (active) return { kind: 'session', session: active };
+  if (active) {
+    if (!modeParam || active.mode === mode) return { kind: 'session', session: active };
+    await gameSessionApi.cancelSession(topicId);
+  }
   return { kind: 'session', session: (await gameSessionApi.createSession({ topicId, mode })).data };
 }
