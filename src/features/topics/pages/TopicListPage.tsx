@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Utensils,
   Compass,
@@ -20,6 +20,7 @@ import {
 import type { LucideIcon } from 'lucide-react';
 import { PageHeading } from '../../../components/common/PageHeading';
 import { TopicCard } from '../../../components/common/TopicCard';
+import { TopicActionModal } from '../components/TopicActionModal';
 import { useTopics } from '../hooks/useTopics';
 import { useToast } from '../../../app/providers/useToast';
 import type { TopicItem } from '../types/topic.types';
@@ -51,8 +52,10 @@ const TOPIC_METADATA: Record<string, { icon: LucideIcon; color: 'lavender' | 'pe
 
 export const TopicListPage: React.FC = () => {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { success } = useToast();
   const [mode, setMode] = useState<GameMode>('FREE_PLAY');
+  const [selectedTopic, setSelectedTopic] = useState<TopicItem | null>(null);
   const { data: topics, isLoading, isError, refetch } = useTopics();
   const { user, isAuthenticated } = useAuth();
   const userId = isAuthenticated ? user?.id : undefined;
@@ -64,15 +67,38 @@ export const TopicListPage: React.FC = () => {
   });
   const progressByTopic = new Map(progress.data?.topics.map((item) => [item.topicId, item]));
 
+  const selectParam = searchParams.get('select');
+  const topicFromQuery =
+    selectParam && topics ? topics.find((item) => String(item.id) === selectParam) ?? null : null;
+  const activeModalTopic = selectedTopic ?? topicFromQuery;
+
+  const clearSelection = () => {
+    setSelectedTopic(null);
+    if (selectParam !== null) {
+      const next = new URLSearchParams(searchParams);
+      next.delete('select');
+      setSearchParams(next, { replace: true });
+    }
+  };
+
   const handleSelectTopic = (topic: TopicItem) => {
-    const active = !progress.isError ? progressByTopic.get(topic.id) : undefined;
-    if (active?.activeSessionId) {
-      const modeQuery = isGameMode(active.activeSessionMode) ? `&mode=${active.activeSessionMode}` : '';
-      navigate(`/game/${active.activeSessionId}?topicId=${topic.id}${modeQuery}`);
+    setSelectedTopic(topic);
+  };
+
+  const handleLearnTopic = (topic: TopicItem) => {
+    clearSelection();
+    success(`Bắt đầu học từ vựng chủ đề: ${topic.name}`, topic.description);
+    navigate(`/topics/${topic.id}/learn`);
+  };
+
+  const handlePlayTopic = (topic: TopicItem, chosenMode: GameMode, resumeSessionId?: number) => {
+    clearSelection();
+    if (resumeSessionId) {
+      navigate(`/game/${resumeSessionId}?topicId=${topic.id}&mode=${chosenMode}`);
       return;
     }
     success(`Đã chọn chủ đề: ${topic.name}. Sẵn sàng vào game ghép chữ!`, topic.description);
-    navigate(`/game/new?topicId=${topic.id}&mode=${mode}`);
+    navigate(`/game/new?topicId=${topic.id}&mode=${chosenMode}`);
   };
 
   const hasAllCounts = !progress.isError && progress.data !== undefined && topics !== undefined && topics.every((topic) => progressByTopic.has(topic.id));
@@ -212,6 +238,16 @@ export const TopicListPage: React.FC = () => {
           Mỗi từ vựng trong chủ đề đều có phát âm chuẩn bản xứ và phiên âm IPA. Bạn có thể sử dụng cử chỉ bàn tay chụm ngón để gắp chữ cái hoặc chuyển sang chế độ chuột bất cứ lúc nào.
         </p>
       </div>
+
+      <TopicActionModal
+        topic={activeModalTopic}
+        progress={activeModalTopic && !progress.isError ? progressByTopic.get(activeModalTopic.id) : undefined}
+        selectedMode={mode}
+        onSelectMode={setMode}
+        onClose={clearSelection}
+        onLearn={handleLearnTopic}
+        onPlay={handlePlayTopic}
+      />
     </div>
   );
 };
