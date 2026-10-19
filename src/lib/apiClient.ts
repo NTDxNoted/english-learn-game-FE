@@ -1,4 +1,4 @@
-﻿import axios, {
+import axios, {
   AxiosError,
   type InternalAxiosRequestConfig,
   type AxiosRequestConfig,
@@ -12,6 +12,7 @@ const baseURL = ((import.meta.env.VITE_API_BASE_URL as string | undefined) || '/
 
 const publicAuthPaths = new Set([
   '/auth/login',
+  '/auth/google',
   '/auth/register',
   '/auth/confirm-register',
   '/auth/resend-confirmation',
