@@ -875,6 +875,60 @@ a {
   border-radius: var(--radius-sm);
 }
 
+.auth-divider {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin: 0.25rem 0;
+  color: var(--color-text-muted);
+  font-size: 0.825rem;
+  font-weight: 700;
+}
+
+.auth-divider::before,
+.auth-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background-color: rgba(50, 44, 130, 0.12);
+}
+
+.btn-google-auth {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  width: 100%;
+  background-color: #ffffff;
+  color: var(--color-text-dark);
+  padding: 0.85rem 1.5rem;
+  border-radius: var(--radius-lg);
+  font-family: var(--font-display);
+  font-size: 0.95rem;
+  font-weight: 700;
+  border: 2px solid rgba(50, 44, 130, 0.14);
+  cursor: pointer;
+  box-shadow: 0 4px 0 rgba(50, 44, 130, 0.1);
+  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.btn-google-auth:hover:not(:disabled) {
+  transform: translateY(-2px);
+  border-color: var(--color-brand-primary);
+  background-color: #fcfbff;
+  box-shadow: 0 6px 0 rgba(50, 44, 130, 0.16);
+}
+
+.btn-google-auth:active:not(:disabled) {
+  transform: translateY(2px);
+  box-shadow: 0 2px 0 rgba(50, 44, 130, 0.12);
+}
+
+.btn-google-auth:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
 /* ==========================================================================
    Toasts, Loading & Alerts
    ========================================================================== */
