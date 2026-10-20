@@ -1,4 +1,4 @@
-﻿export type UserRole = 'learner' | 'admin';
+export type UserRole = 'learner' | 'admin';
 export type UserStatus = 'ACTIVE' | 'BLOCKED';
 
 export interface UserProfile {
@@ -45,6 +45,11 @@ export interface ResendCodeRequest {
 export interface LoginRequest {
   email: string;
   password: string;
+}
+
+export interface GoogleCodeExchangeRequest {
+  code: string;
+  redirectUri: string;
 }
 
 export interface RefreshTokenRequest {
