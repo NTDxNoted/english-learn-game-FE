@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
@@ -13,12 +13,33 @@ import {
   KeyRound,
 } from 'lucide-react';
 import { loginSchema, type LoginFormData } from '../schemas/loginSchema';
-import { authApi } from '../api/authApi';
+import { authApi, getCognitoRedirectUri } from '../api/authApi';
 import { useAuth } from '../hooks/useAuth';
 import { useToast } from '../../../app/providers/useToast';
 import { ApiError } from '../../../types/api.types';
 import { tokenStorage } from '../../../lib/tokenStorage';
-import type { UserProfile } from '../types/auth.types';
+import type { AuthTokens, UserProfile } from '../types/auth.types';
+
+const GoogleIcon: React.FC = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+    <path
+      fill="#4285F4"
+      d="M23.49 12.27c0-.79-.07-1.54-.19-2.27H12v4.51h6.47c-.29 1.48-1.14 2.73-2.4 3.58v3h3.86c2.26-2.09 3.56-5.17 3.56-8.82Z"
+    />
+    <path
+      fill="#34A853"
+      d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.86-3c-1.08.72-2.45 1.16-4.07 1.16-3.13 0-5.78-2.11-6.73-4.96H1.29v3.09C3.26 21.3 7.31 24 12 24Z"
+    />
+    <path
+      fill="#FBBC05"
+      d="M5.27 14.29c-.25-.72-.38-1.49-.38-2.29s.13-1.57.38-2.29V6.62H1.29C.47 8.24 0 10.06 0 12s.47 3.76 1.29 5.38l3.98-3.09Z"
+    />
+    <path
+      fill="#EA4335"
+      d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.31 0 3.26 2.7 1.29 6.62l3.98 3.09c.95-2.85 3.6-4.96 6.73-4.96Z"
+    />
+  </svg>
+);
 
 export const LoginForm: React.FC = () => {
   const navigate = useNavigate();
@@ -27,13 +48,22 @@ export const LoginForm: React.FC = () => {
   const { success: toastSuccess, error: toastError } = useToast();
 
   const [showPassword, setShowPassword] = useState(false);
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const [unverifiedEmail, setUnverifiedEmail] = useState<string | null>(null);
   const [passwordResetRequired, setPasswordResetRequired] = useState<string | null>(null);
   const [isLocked, setIsLocked] = useState(searchParams.get('accountBlocked') === 'true');
   const [isRateLimited, setIsRateLimited] = useState(false);
-  const [generalError, setGeneralError] = useState<string | null>(null);
-
   const initialEmail = searchParams.get('email') || '';
+  const initialOAuthError = searchParams.get('error');
+  const initialOAuthErrorDesc = searchParams.get('error_description');
+
+  const [generalError, setGeneralError] = useState<string | null>(() => {
+    if (!initialOAuthError) return null;
+    return initialOAuthError === 'access_denied'
+      ? 'Bạn đã hủy đăng nhập bằng Google.'
+      : initialOAuthErrorDesc || 'Đăng nhập bằng Google không thành công. Vui lòng thử lại.';
+  });
+  const processedOAuthRef = useRef(false);
 
   const {
     register,
@@ -48,6 +78,137 @@ export const LoginForm: React.FC = () => {
     },
   });
 
+  const completeAuthenticatedSession = useCallback(
+    async (tokens: AuthTokens, preferredRedirect?: string | null) => {
+      tokenStorage.setTokens({
+        accessToken: tokens.accessToken,
+        refreshToken: tokens.refreshToken,
+      });
+
+      const syncRes = await authApi.syncUser();
+      const userProfile: UserProfile = syncRes.data;
+      if (userProfile.status !== 'ACTIVE') {
+        throw new ApiError({ message: 'Tài khoản không hoạt động.', errorCode: 'ACCOUNT_BLOCKED' }, 403);
+      }
+
+      authLogin(tokens, userProfile);
+      toastSuccess('Đăng nhập thành công! Chào mừng bạn quay trở lại.', 'Xác thực tài khoản');
+
+      const redirectUrl = preferredRedirect ?? searchParams.get('redirect');
+      if (
+        redirectUrl &&
+        redirectUrl.startsWith('/') &&
+        !redirectUrl.startsWith('//') &&
+        !redirectUrl.startsWith('/login')
+      ) {
+        navigate(redirectUrl);
+      } else if (userProfile?.role === 'admin') {
+        navigate('/admin');
+      } else {
+        navigate('/topics');
+      }
+    },
+    [authLogin, navigate, searchParams, toastSuccess],
+  );
+
+  // Xử lý callback khi quay về từ Google OAuth (?code=... hoặc #access_token=... hoặc ?error=...)
+  useEffect(() => {
+    if (processedOAuthRef.current) return;
+
+    const oauthError = searchParams.get('error');
+    const oauthErrorDesc = searchParams.get('error_description');
+    const oauthCode = searchParams.get('code');
+    const oauthState = searchParams.get('state');
+    const hashString = typeof window !== 'undefined' ? window.location.hash.replace(/^#/, '') : '';
+    const hashParams = new URLSearchParams(hashString);
+    const hashAccessToken = hashParams.get('access_token');
+
+    if (!oauthError && !oauthCode && !hashAccessToken) {
+      return;
+    }
+
+    processedOAuthRef.current = true;
+
+    const cleanUrl = () => {
+      if (typeof window !== 'undefined' && window.history?.replaceState) {
+        window.history.replaceState({}, document.title, window.location.pathname);
+      }
+    };
+
+    if (oauthError) {
+      cleanUrl();
+      const message =
+        oauthError === 'access_denied'
+          ? 'Bạn đã hủy đăng nhập bằng Google.'
+          : oauthErrorDesc || 'Đăng nhập bằng Google không thành công. Vui lòng thử lại.';
+      toastError(message, 'Đăng nhập Google');
+      return;
+    }
+
+    const runOAuthCallback = async () => {
+      setIsGoogleLoading(true);
+      setGeneralError(null);
+      setIsLocked(false);
+      tokenStorage.notifyUnauthorized();
+
+      try {
+        let tokens: AuthTokens;
+        if (oauthCode) {
+          const redirectUri = getCognitoRedirectUri();
+          const exchangeRes = await authApi.exchangeGoogleCode({
+            code: oauthCode,
+            redirectUri,
+          });
+          tokens = exchangeRes.data;
+        } else {
+          tokens = {
+            accessToken: hashAccessToken!,
+            refreshToken: hashParams.get('refresh_token') || undefined,
+            idToken: hashParams.get('id_token') || undefined,
+            tokenType: hashParams.get('token_type') || 'Bearer',
+            expiresIn: Number(hashParams.get('expires_in')) || 3600,
+          };
+        }
+
+        cleanUrl();
+        const redirectTarget = oauthState || hashParams.get('state') || searchParams.get('redirect');
+        await completeAuthenticatedSession(tokens, redirectTarget);
+      } catch (err: unknown) {
+        cleanUrl();
+        tokenStorage.notifyUnauthorized();
+        if (err instanceof ApiError && err.errorCode === 'ACCOUNT_BLOCKED') {
+          setIsLocked(true);
+          return;
+        }
+        const message =
+          err instanceof ApiError
+            ? err.message
+            : 'Không thể hoàn tất đăng nhập với Google. Vui lòng thử lại.';
+        setGeneralError(message);
+        toastError(message, 'Lỗi đăng nhập Google');
+      } finally {
+        setIsGoogleLoading(false);
+      }
+    };
+
+    void runOAuthCallback();
+  }, [completeAuthenticatedSession, searchParams, toastError]);
+
+  const handleGoogleLogin = () => {
+    if (isSubmitting || isGoogleLoading) return;
+    setGeneralError(null);
+    setIsLocked(false);
+    setIsGoogleLoading(true);
+
+    const redirectUri = getCognitoRedirectUri();
+    const redirectTarget = searchParams.get('redirect') || undefined;
+    const authorizeUrl = authApi.getGoogleAuthorizeUrl(redirectUri, redirectTarget);
+
+    if (typeof window !== 'undefined') {
+      window.location.assign(authorizeUrl);
+    }
+  };
+
   const onSubmit = async (data: LoginFormData) => {
     // Reset mọi thông báo lỗi trước đó
     setUnverifiedEmail(null);
@@ -58,41 +219,14 @@ export const LoginForm: React.FC = () => {
 
     tokenStorage.notifyUnauthorized();
     try {
-      // 1. Gọi backend POST /api/v1/auth/login (Cognito InitiateAuth)
+      // 1. Gọi backend POST /api/auth/login (Cognito InitiateAuth)
       const response = await authApi.login({
         email: data.email.trim(),
         password: data.password,
       });
 
-      const tokens = response.data;
-
-      // 2. Lưu token vào localStorage để apiClient tự động đính kèm Authorization header
-      tokenStorage.setTokens({
-        accessToken: tokens.accessToken,
-        refreshToken: tokens.refreshToken,
-      });
-
-      // 3. Tự động đồng bộ tài khoản từ Cognito vào bảng users (PostgreSQL) qua /api/auth/sync
-      const syncRes = await authApi.syncUser();
-      const userProfile: UserProfile = syncRes.data;
-      if (userProfile.status !== 'ACTIVE') {
-        throw new ApiError({ message: 'Tài khoản không hoạt động.', errorCode: 'ACCOUNT_BLOCKED' }, 403);
-      }
-
-      // Cập nhật AuthContext state
-      authLogin(tokens, userProfile);
-
-      toastSuccess('Đăng nhập thành công! Chào mừng bạn quay trở lại.', 'Xác thực tài khoản');
-
-      // 4. Chuyển hướng theo query param redirect hoặc mặc định về /topics
-      const redirectUrl = searchParams.get('redirect');
-      if (redirectUrl && redirectUrl.startsWith('/') && !redirectUrl.startsWith('//') && !redirectUrl.startsWith('/login')) {
-        navigate(redirectUrl);
-      } else if (userProfile?.role === 'admin') {
-        navigate('/admin');
-      } else {
-        navigate('/topics');
-      }
+      // 2. Lưu token, gọi /api/auth/sync và điều hướng
+      await completeAuthenticatedSession(response.data);
     } catch (err: unknown) {
       tokenStorage.notifyUnauthorized();
       if (err instanceof ApiError) {
@@ -373,8 +507,8 @@ export const LoginForm: React.FC = () => {
       <button
         type="submit"
         className="btn-3d w-full mt-2"
-        disabled={isSubmitting}
-        style={isSubmitting ? { opacity: 0.75, cursor: 'not-allowed' } : undefined}
+        disabled={isSubmitting || isGoogleLoading}
+        style={isSubmitting || isGoogleLoading ? { opacity: 0.75, cursor: 'not-allowed' } : undefined}
       >
         {isSubmitting ? (
           <>
@@ -385,6 +519,31 @@ export const LoginForm: React.FC = () => {
           <>
             <LogIn size={18} />
             <span>Đăng nhập</span>
+          </>
+        )}
+      </button>
+
+      {/* Phân cách phương thức đăng nhập */}
+      <div className="auth-divider" role="separator" aria-label="Hoặc tiếp tục với">
+        <span>Hoặc tiếp tục với</span>
+      </div>
+
+      {/* Nút Đăng nhập bằng Google */}
+      <button
+        type="button"
+        onClick={handleGoogleLogin}
+        disabled={isSubmitting || isGoogleLoading}
+        className="btn-google-auth"
+      >
+        {isGoogleLoading ? (
+          <>
+            <Loader2 size={18} className="animate-spin" />
+            <span>Đang kết nối với Google...</span>
+          </>
+        ) : (
+          <>
+            <GoogleIcon />
+            <span>Tiếp tục với Google</span>
           </>
         )}
       </button>
