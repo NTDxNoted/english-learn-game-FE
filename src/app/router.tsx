@@ -98,6 +98,11 @@ export const router = createBrowserRouter([
     errorElement: <ErrorPage />,
   },
   {
+    path: '/callback',
+    element: <LoginPage />,
+    errorElement: <ErrorPage />,
+  },
+  {
     path: '/register',
     element: <RegisterPage />,
     errorElement: <ErrorPage />,
