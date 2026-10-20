@@ -50,3 +50,24 @@ export interface LoginRequest {
 export interface RefreshTokenRequest {
   refreshToken: string;
 }
+
+// Context type cho AUTH-03
+export interface AuthContextType {
+  user: UserProfile | null;
+  isAuthenticated: boolean;
+  isLoading: boolean;
+  login: (tokens: AuthTokens, profile?: UserProfile) => void;
+  logout: () => Promise<void>;
+  refreshUser: () => Promise<UserProfile | null>;
+}
+
+// Request & Response payload cho AUTH-04
+export interface ForgotPasswordRequest {
+  email: string;
+}
+
+export interface ResetPasswordRequest {
+  email: string;
+  code: string;
+  newPassword: string;
+}

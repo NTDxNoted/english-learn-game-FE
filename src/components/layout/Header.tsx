@@ -11,18 +11,19 @@ import {
   LogOut,
   LogIn,
   UserPlus,
+  User,
 } from 'lucide-react';
-import { tokenStorage } from '../../lib/tokenStorage';
+import { useAuth } from '../../features/auth/hooks/useAuth';
 import { useToast } from '../../app/providers/useToast';
 
 export const Header: React.FC = () => {
   const navigate = useNavigate();
+  const { user, isAuthenticated, logout } = useAuth();
   const { success, info } = useToast();
-  const isLoggedIn = tokenStorage.hasAccessToken();
 
-  const handleLogout = () => {
-    tokenStorage.clearTokens();
-    success('Bạn đã đăng xuất thành công', 'Đăng xuất');
+  const handleLogout = async () => {
+    await logout();
+    success('Bạn đã đăng xuất tài khoản thành công', 'Đăng xuất');
     navigate('/login');
   };
 
@@ -84,11 +85,13 @@ export const Header: React.FC = () => {
 
         {/* Right side status & action buttons */}
         <div className="header-actions">
-          {/* Streak pill badge */}
-          <div className="streak-pill" title="Chuỗi ngày học liên tục">
-            <Flame size={16} color="#ff7b62" className="fill-[#ff7b62]" />
-            <span>3 ngày liên tiếp</span>
-          </div>
+          {/* Streak pill badge - Hiển thị streak thật từ tài khoản người dùng */}
+          {isAuthenticated && (
+            <div className="streak-pill" title="Chuỗi ngày học liên tục">
+              <Flame size={16} color="#ff7b62" className="fill-[#ff7b62]" />
+              <span>{user?.currentStreak ?? 0} ngày liên tiếp</span>
+            </div>
+          )}
 
           <button
             type="button"
@@ -100,16 +103,51 @@ export const Header: React.FC = () => {
             <CircleHelp size={18} />
           </button>
 
-          {isLoggedIn ? (
-            <button
-              type="button"
-              className="btn-outline"
-              onClick={handleLogout}
-              title="Đăng xuất"
-            >
-              <LogOut size={16} />
-              <span>Đăng xuất</span>
-            </button>
+          {isAuthenticated ? (
+            <div className="flex items-center gap-3">
+              {/* Thông tin người dùng */}
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                  padding: '0.35rem 0.75rem',
+                  borderRadius: 'var(--radius-pill)',
+                  backgroundColor: 'var(--color-pastel-lavender)',
+                  color: 'var(--color-brand-primary)',
+                  fontSize: '0.875rem',
+                  fontWeight: 700,
+                }}
+                title={user?.email || 'Người học'}
+              >
+                <div
+                  style={{
+                    width: '24px',
+                    height: '24px',
+                    borderRadius: '50%',
+                    backgroundColor: 'var(--color-brand-primary)',
+                    color: '#ffffff',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <User size={14} />
+                </div>
+                <span>{user?.displayName || 'Người học'}</span>
+              </div>
+
+              {/* Nút Đăng xuất */}
+              <button
+                type="button"
+                className="btn-outline"
+                onClick={handleLogout}
+                title="Đăng xuất khỏi hệ thống"
+              >
+                <LogOut size={16} />
+                <span>Đăng xuất</span>
+              </button>
+            </div>
           ) : (
             <div className="flex items-center gap-2">
               <Link to="/login" className="btn-ghost">

@@ -14,13 +14,15 @@ import {
 } from 'lucide-react';
 import { loginSchema, type LoginFormData } from '../schemas/loginSchema';
 import { authApi } from '../api/authApi';
-import { tokenStorage } from '../../../lib/tokenStorage';
+import { useAuth } from '../hooks/useAuth';
 import { useToast } from '../../../app/providers/useToast';
 import { ApiError } from '../../../types/api.types';
+import type { UserProfile } from '../types/auth.types';
 
 export const LoginForm: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const { login: authLogin } = useAuth();
   const { success: toastSuccess, error: toastError } = useToast();
 
   const [showPassword, setShowPassword] = useState(false);
@@ -64,35 +66,33 @@ export const LoginForm: React.FC = () => {
 
       // 2. LƯU CHỈ accessToken và refreshToken VÀO localStorage QUA tokenStorage
       // TUYỆT ĐỐI KHÔNG LƯU idToken (theo chuẩn bảo mật Signly AWS Cognito)
-      tokenStorage.setTokens({
-        accessToken: tokens.accessToken,
-        refreshToken: tokens.refreshToken,
-      });
-
-      // 3. Gọi GET /api/v1/users/me để xác định vai trò người dùng (learner / admin)
-      let userRole = 'learner';
+      // 3. Gọi GET /api/v1/users/me để lấy hồ sơ và xác định vai trò
+      let userProfile: UserProfile | undefined;
       try {
         const meRes = await authApi.getMe();
-        userRole = meRes.data?.role || 'learner';
+        userProfile = meRes.data;
       } catch (meErr) {
         // Trường hợp người dùng mới từ Cognito chưa có record trong bảng users
         if (meErr instanceof ApiError && meErr.errorCode === 'USER_NOT_SYNCED') {
           try {
             const syncRes = await authApi.syncUser();
-            userRole = syncRes.data?.role || 'learner';
+            userProfile = syncRes.data;
           } catch {
-            // Giữ role mặc định là learner nếu đồng bộ gặp sự cố tạm thời
+            // Giữ undefined nếu đồng bộ gặp sự cố tạm thời
           }
         }
       }
 
+      // Cập nhật AuthContext state
+      authLogin(tokens, userProfile);
+
       toastSuccess('Đăng nhập thành công! Chào mừng bạn quay trở lại.', 'Xác thực tài khoản');
 
-      // 4. Chuyển hướng theo vai trò hoặc theo URL redirect mong muốn
+      // 4. Chuyển hướng theo query param redirect hoặc mặc định về /topics
       const redirectUrl = searchParams.get('redirect');
       if (redirectUrl && !redirectUrl.startsWith('/login')) {
-        navigate(redirectUrl);
-      } else if (userRole === 'admin') {
+        navigate(decodeURIComponent(redirectUrl));
+      } else if (userProfile?.role === 'admin') {
         navigate('/admin');
       } else {
         navigate('/topics');
