@@ -1,6 +1,6 @@
-﻿import React from 'react';
+import React from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { LogIn, Sparkles, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { LogIn, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { LoginForm } from '../components/LoginForm';
 
 export const LoginPage: React.FC = () => {
@@ -128,10 +128,6 @@ export const LoginPage: React.FC = () => {
               Xác minh tại đây
             </Link>
           </p>
-          <div className="auth-note">
-            <Sparkles size={14} className="inline mr-1" />
-            Xác thực bảo mật qua AWS Cognito User Pool. Tự động đồng bộ và làm mới phiên học.
-          </div>
         </div>
       </div>
     </div>
