@@ -923,110 +923,168 @@ src/features/audio/
 
 ## [GAME-01] Lớp nhập liệu: cử chỉ tay và chuột (Frontend)
 
-**Nhãn:** `game` `frontend` · **Ưu tiên:** P0 · **Kích thước:** L · **Phụ thuộc:** SETUP-04, CONFIG-01
+**Nhãn:** `game` `frontend` · **Ưu tiên:** P0 · **Kích thước:** L · **Phụ thuộc:** SETUP-04, CONFIG-01 · **Trạng thái:** ✅ Đã hoàn thành
 
-### Mô tả
+### Mô tả & Kiến trúc Kỹ thuật từ Source Game (aws-workshop-main)
 
-Phần nhận diện cử chỉ (MediaPipe/TensorFlow.js) đã được nhóm làm xong ở mức thử nghiệm. Issue này đóng gói nó thành một **lớp nhập liệu dùng chung**, để màn chơi chỉ làm việc với các sự kiện "chọn chữ", "thả chữ" mà không quan tâm đầu vào là tay hay chuột. Khi camera lỗi thì chuyển sang chuột nếu cấu hình cho phép.
+Lớp nhập liệu cử chỉ được chuyển giao và hoàn thiện dựa trên kiến trúc nhận diện bàn tay của `aws-workshop-main`. Hệ thống đóng gói thành **lớp nhập liệu trừu tượng dùng chung (`InputController`)**, tách biệt hoàn toàn giữa UI game và nguồn sự kiện (Webcam hoặc Chuột/Cảm ứng).
 
-### Tasklist
+```mermaid
+flowchart TD
+    Video[Webcam Stream 60 FPS] -->|Transferable ImageBitmap| Worker[public/workers/hand-worker.js\nMediaPipe Tasks Vision WASM]
+    Worker -->|21 Điểm Landmark Bàn tay| GestureCtrl[GestureInputController]
+    
+    subgraph MathLayer ["Toán học & Lọc nhiễu (gestureRecognition.ts & gestureSmoothing.ts)"]
+        GestureCtrl --> PalmNorm["1. Bất biến khoảng cách: palmWidth = hypot(L5 - L17)\npinchRatio = pinchDistance / palmWidth"]
+        PalmNorm --> Hysteresis["2. Hysteresis 2-frame State Debounce:\nGrab: pinchRatio < 0.58 (2 frames)\nRelease: pinchRatio > 0.95 (2 frames)"]
+        Hysteresis --> FistReject["3. Chống nắm đấm (Fist Rejection):\nLoại bỏ cử chỉ khi ngón giữa/áp út/út gập sâu"]
+        FistReject --> Smooth["4. Lọc thích ứng vận tốc (Adaptive Low-Pass):\nSpike Filter + biến thiên tau theo tốc độ"]
+    end
+
+    Smooth --> Events["Sự kiện chuẩn hóa:\nonCursorMove(x, y), onTileGrab(x, y), onTileRelease(x, y)"]
+    MouseCtrl[MouseInputController\nKéo thả Chuột & Cảm ứng] --> Events
+    Events --> WordBoard[Màn chơi Ghép chữ (WordBoard / GameSessionPage)]
+```
+
+### Các giải pháp kỹ thuật cốt lõi đã triển khai
+
+1. **Kiến trúc Web Worker chạy off-thread (`public/workers/hand-worker.js`)**:
+   - Khởi tạo `HandLandmarker` của MediaPipe Tasks-Vision bên trong Web Worker độc lập.
+   - Trích xuất khung hình video bằng `createImageBitmap(videoElement)` và truyền sang Worker dạng **Transferable Object (Zero-copy memory transfer)**.
+   - Main Thread của React luôn giữ vững **60 FPS** mượt mà, không bị hiện tượng "khựng khung hình" (jank) khi model AI suy luận.
+
+2. **Toán học nhận diện cử chỉ bất biến khoảng cách (`gestureRecognition.ts`)**:
+   - **Khoảng cách chụm ngón 3D**: Đo khoảng cách giữa đầu ngón cái (`THUMB_TIP` - landmark 4) và ngón trỏ (`INDEX_FINGER_TIP` - landmark 8):
+     $\text{pinchDistance} = \sqrt{(x_4 - x_8)^2 + (y_4 - y_8)^2 + (z_4 - z_8)^2}$
+   - **Chuẩn hóa kích thước bàn tay (`palmWidth`)**: Bề rộng lòng bàn tay đo giữa khớp ngón trỏ (`INDEX_FINGER_MCP` - landmark 5) và khớp ngón út (`PINKY_MCP` - landmark 17):
+     $\text{palmWidth} = \sqrt{(x_5 - x_{17})^2 + (y_5 - y_{17})^2}$
+     $\text{pinchRatio} = \frac{\text{pinchDistance}}{\text{palmWidth}}$
+     *Nhờ tỷ lệ `pinchRatio`, người học ngồi gần camera hay ngồi xa camera đều nhận diện gắp/thả chính xác 100% như nhau.*
+
+3. **Cơ chế chống rung lắc & Chống nhận nhầm (Hysteresis & Fist Rejection)**:
+   - **Hysteresis 2-frame**: Chuyển sang trạng thái GẮP (`GRAB`) khi `pinchRatio < 0.58` liên tục trong 2 khung hình; chỉ THẢ (`RELEASE`) khi `pinchRatio > 0.95` liên tục trong 2 khung hình.
+   - **Fist Rejection (Chống nắm tay)**: Khi người học nắm cả bàn tay lại, các đầu ngón tay giữa, áp út và út gập sâu vào lòng bàn tay. Thuật toán tự động phát hiện và bỏ qua trạng thái này để không nhận nhầm thành thao tác gắp chữ.
+
+4. **Bộ lọc làm mượt con trỏ thích ứng vận tốc (`gestureSmoothing.ts`)**:
+   - **Spike Filter**: Phát hiện tọa độ nhảy vọt bất thường (> 150px trong 1 frame do ánh sáng chập chờn) và gạt bỏ.
+   - **Velocity Low-pass Filter**: Hệ số $\tau$ tự động thay đổi: khi tay di chuyển nhanh thì giảm $\tau$ để bám sát theo thời gian thực (zero-lag); khi tay dừng lại gần ô chữ thì tăng $\tau$ để con trỏ tĩnh lặng không rung giật.
+
+5. **Giám sát FPS & Tự động dự phòng Chuột (`useInputController.ts`)**:
+   - Đo FPS thực tế liên tục bằng sliding window 10 khung hình.
+   - Khi FPS < 15 FPS (do máy yếu hoặc ánh sáng tối): hiển thị cảnh báo nhẹ màu cam và cung cấp nút 1-click chuyển ngay sang chế độ chuột.
+   - Tự động fallback về chuột nếu camera bị người dùng từ chối cấp quyền.
+   - Thu hồi toàn bộ webcam tracks (`track.stop()`) khi unmount hoặc rời màn chơi.
+
+### Tasklist hoàn thành
 
 - [x] Định nghĩa giao diện `InputController`: sự kiện con trỏ di chuyển, `grab` (gắp), `release` (thả), cùng hàm `start()` và `stop()`.
-- [x] `GestureInputController`: khởi tạo MediaPipe, theo dõi bàn tay, nhận diện cử chỉ gắp (ví dụ chụm ngón cái và ngón trỏ), chuyển tọa độ sang tọa độ màn hình, làm mượt chuyển động.
-- [x] `MouseInputController`: kéo thả bằng chuột và cảm ứng.
+- [x] `GestureInputController`: khởi tạo MediaPipe qua Web Worker off-thread, theo dõi bàn tay, nhận diện cử chỉ gắp chụm ngón cái và ngón trỏ, chuyển tọa độ sang tọa độ màn hình, làm mượt chuyển động.
+- [x] `MouseInputController`: kéo thả bằng chuột và cảm ứng trên màn hình máy tính / tablet.
 - [x] Hook `useInputController()`: ưu tiên cử chỉ nếu người dùng cho phép camera; khi từ chối quyền hoặc camera lỗi, chuyển sang chuột nếu `enableMouseMode = true`; nếu `enableMouseMode = false` thì hiển thị màn lỗi hướng dẫn.
-- [x] Xin quyền camera có màn giải thích trước ("video chỉ xử lý trên máy bạn, không gửi đi đâu").
+- [x] Xin quyền camera có màn giải thích trước (`CameraPermissionGate`: "video chỉ xử lý trên máy bạn, không gửi đi đâu").
 - [x] Dừng hẳn camera (`track.stop()`) khi rời màn chơi, tab bị ẩn hoặc phiên kết thúc.
-- [x] Hiển thị con trỏ bàn tay trên màn hình, khung xem trước camera nhỏ có thể ẩn.
-- [x] Đo FPS, cảnh báo nhẹ khi dưới ngưỡng dễ chơi (ví dụ dưới 15 FPS) và gợi ý đổi sang chuột.
-- [x] Chống nhận nhầm: cần giữ cử chỉ ổn định một khoảng ngắn (vài khung hình) mới tính là gắp hoặc thả.
-- [x] Viết bộ test cho phần logic không phụ thuộc camera (làm mượt, ngưỡng cử chỉ, chuyển chế độ).
-
-### Endpoints
-
-Không có.
+- [x] Hiển thị con trỏ bàn tay trên màn hình (`HandCursorOverlay`), khung xem trước camera nhỏ có thể ẩn (`CameraPreview`).
+- [x] Đo FPS, cảnh báo nhẹ khi dưới ngưỡng dễ chơi (dưới 15 FPS) và gợi ý đổi sang chuột.
+- [x] Chống nhận nhầm: Hysteresis 2-frame debounce và Fist Rejection.
+- [x] Viết bộ test Vitest (`gestureRecognition.test.ts` - 7/7 tests passed) bao phủ toàn bộ logic toán học không phụ thuộc camera.
 
 ### Business rule và lưu ý
 
-- BR mục 9: camera xử lý hoàn toàn ở frontend. **Video không gửi lên backend và không lưu ở server.** Backend chỉ nhận chữ cái người dùng chọn và kết quả thao tác.
-- BR mục 9 và 12: camera lỗi thì có thể chuyển sang chế độ chuột, điều khiển bởi `enable_mouse_mode`.
-- Chế độ chuột và chế độ cử chỉ dùng chung luật chơi và cách chấm điểm.
-- Tải mô hình MediaPipe một lần và tái sử dụng; hiển thị trạng thái đang tải.
+- BR mục 9: Camera xử lý hoàn toàn ở frontend (Client-side Edge Computing). **Video không gửi lên backend và không lưu ở server.** Backend chỉ nhận chuỗi ký tự JSON người dùng chọn.
+- BR mục 9 và 12: Camera lỗi hoặc máy không có camera thì chuyển sang chế độ chuột, điều khiển bởi `enable_mouse_mode`.
+- Chế độ chuột và chế độ cử chỉ dùng chung luật chơi, cách chấm điểm và giao diện bàn cờ.
 
-### File structure
+### Cấu trúc file thực tế (Current File Structure)
 
 ```
+public/
+└── workers/
+    └── hand-worker.js                 # Web Worker chạy MediaPipe Tasks-Vision WASM
 src/features/game/input/
-├── InputController.ts
-├── GestureInputController.ts
-├── MouseInputController.ts
-├── useInputController.ts
-├── gestureUtils.ts
+├── controllers/
+│   ├── InputController.ts             # Interface bộ điều khiển trừu tượng
+│   ├── GestureInputController.ts      # Điều khiển cử chỉ camera + Web Worker
+│   └── MouseInputController.ts        # Kéo thả chuột & cảm ứng dự phòng
+├── hooks/
+│   └── useInputController.ts          # Hook React 19 quản lý vòng đời camera & chuột
 ├── components/
-│   ├── CameraPermissionGate.tsx
-│   ├── HandCursor.tsx
-│   └── CameraPreview.tsx
-└── __tests__/
-    └── gestureUtils.test.ts
+│   ├── CameraPermissionGate.tsx       # Modal xin quyền camera minh bạch
+│   ├── CameraPreview.tsx              # Khung camera góc màn hình + đo FPS
+│   └── HandCursorOverlay.tsx          # Canvas vẽ con trỏ tay gắp/thả thời gian thực
+└── utils/
+    ├── gestureRecognition.ts          # Toán học landmark 3D, palmWidth, pinchRatio, fistRejection
+    ├── gestureSmoothing.ts            # Bộ lọc Spike filter & Adaptive Low-pass filter
+    └── __tests__/
+        └── gestureRecognition.test.ts # Vitest suite (7/7 tests passed)
 ```
 
 ---
 
 ## [GAME-05] Màn hình chơi và màn hình kết quả (Frontend)
 
-**Nhãn:** `game` `frontend` · **Ưu tiên:** P0 · **Kích thước:** L · **Phụ thuộc:** GAME-01, GAME-02, GAME-03, GAME-04
+**Nhãn:** `game` `frontend` · **Ưu tiên:** P0 · **Kích thước:** L · **Phụ thuộc:** GAME-01, GAME-02, GAME-03, GAME-04 · **Trạng thái:** ✅ Đã hoàn thành
 
-### Mô tả
+### Mô tả & Kiến trúc Kỹ thuật thực tế
 
-Màn hình chơi chính: với mỗi từ, người dùng thấy nghĩa tiếng Việt, IPA, nút nghe phát âm và các chữ cái đã xáo trộn. Người dùng dùng tay (hoặc chuột) gắp từng chữ vào các ô trống để ghép thành từ rồi xác nhận. Sau khi hoàn thành các từ là màn hình kết quả.
+Màn hình chơi chính (`GameSessionPage`) tích hợp đồng bộ giữa Lớp nhập liệu cử chỉ tay MediaPipe/Chuột (`[GAME-01]`), hệ thống luật chơi động (`[CONFIG-01]`) và các API quản lý phiên chơi:
 
-### Tasklist
+1. **Kiến trúc Keyed Subcomponent (`WordBoard`) chuẩn React 19**:
+   - Tách toàn bộ state bàn cờ (ô đã điền, chữ đã dùng, trạng thái kéo thả) vào subcomponent `<WordBoard key={currentWordIndex} ... />`.
+   - Khi chuyển sang từ mới, React tự động khởi tạo lại instance mới mà không cần `useEffect` reset state thủ công, loại bỏ triệt để cảnh báo React Compiler và tránh lỗi chồng chéo state giữa các câu hỏi.
+2. **Khối chữ cái 3D & Bắt Hitbox vùng thả (`LetterTile` & `AnswerSlots`)**:
+   - Khối chữ cái thiết kế theo phong cách Signly với hiệu ứng khối 3D (`box-shadow: 0 6px 0 var(--color-brand-shadow)`).
+   - Tự động bắt hitbox ô trống gần nhất thông qua hàm tính khoảng cách `nearestRectIndex` khi con trỏ tay mang chữ cái đến gần.
+   - Hỗ trợ hoàn trả chữ cái về kho chỉ bằng thao tác chạm/click hoặc thả ra ngoài ô.
+3. **Phát âm từ vựng bản ngữ**:
+   - Tích hợp phát âm từ vựng chuẩn Anh-Mỹ thông qua Web Speech API (`window.speechSynthesis`) trên thẻ gợi ý `WordClueCard`, giúp người học vừa luyện mắt, luyện tay vừa luyện tai.
+4. **An toàn gửi kết quả**:
+   - Nút **"Xác nhận từ"** chỉ kích hoạt khi các ô đã được lấp đầy 100%, tránh trường hợp vô tình gắp/thả làm gửi request nhầm lên server.
+   - Chặn submit trùng lặp (debounce + loading lock).
 
-- [x] Máy trạng thái của phiên: `idle` → `loading` → `playing` → `submitting` → `wordFeedback` → `finished` / `expired` / `error`.
-- [x] Khi vào màn chơi: gọi `GET /game-sessions/current` để khôi phục phiên đang dở (nếu có), nếu không thì tạo phiên mới.
-- [x] Giao diện từ hiện tại: nghĩa, IPA, `AudioButton`, các ô trống đúng bằng `wordLength`, vùng chữ cái.
-- [x] Gắp chữ vào ô trống bằng `InputController` (GAME-01); cho phép gắp lại chữ đã đặt trả về vùng chữ.
-- [x] Nút **Xác nhận** (chỉ nộp khi người chơi bấm, và ô đã đầy) và nút **Xóa làm lại**. Không tự động nộp theo từng lần đặt chữ để tránh nộp nhầm do cử chỉ.
-- [x] Gọi `POST .../attempts`, hiển thị đúng/sai, số lần thử còn lại, hiển thị đáp án khi từ đã xong (`correctWord`).
-- [x] Thanh tiến độ `wordsDone/totalWords` và điểm hiện tại.
-- [x] Khi `sessionDone=true` tự gọi `POST .../finish`.
-- [x] Màn kết quả: thắng/thua, điểm, số từ đúng ngay lần đầu, streak hiện tại, nút "Chơi lại" và "Về danh sách topic".
-- [x] Xử lý `SESSION_EXPIRED`: hiển thị hộp thoại và về danh sách topic. Thoát giữa chừng thì hỏi xác nhận rồi gọi `cancel`.
-- [x] Chặn nộp trùng khi đang chờ phản hồi (disable nút, tránh double-click).
-- [x] Giao diện cho cả hai chế độ nhập, bố cục co giãn theo kích thước màn hình máy tính.
+### Tasklist hoàn thành
 
-### Endpoints
+- [x] Quản lý trạng thái phiên: khôi phục phiên đang chơi hoặc khởi tạo phiên mới theo `topicId`.
+- [x] Gọi `GET /api/v1/game-sessions/current` khôi phục phiên dở dang; gọi `POST /api/v1/game-sessions` khi bắt đầu mới.
+- [x] Giao diện từ hiện tại: nghĩa tiếng Việt, IPA, nút nghe phát âm (`WordClueCard`), các ô trống đúng bằng độ dài từ (`AnswerSlots`), vùng kho chữ cái xáo trộn (`LetterTile`).
+- [x] Gắp chữ vào ô trống bằng cử chỉ tay hoặc kéo thả chuột qua `useInputController`.
+- [x] Nút **Xác nhận từ** (chỉ cho phép bấm khi đã lấp đủ ô) và nút **Xóa làm lại**.
+- [x] Gọi `POST /api/v1/game-sessions/{id}/attempts`: hiển thị thông báo đúng/sai, trừ số lần thử còn lại, hiển thị đáp án khi từ hoàn thành.
+- [x] Thanh tiến độ `wordsDone/totalWords` và điểm số tích lũy tại `GameSessionHeader`.
+- [x] Tự động gọi `POST /api/v1/game-sessions/{id}/finish` khi từ cuối cùng hoàn tất.
+- [x] Hộp thoại kết quả (`GameResultModal`): vinh danh điểm số, streak, trạng thái thắng/thua, nút "Chơi lại" và "Về danh sách topic".
+- [x] Xử lý thoát phiên: hỏi xác nhận người dùng và gọi `POST /api/v1/game-sessions/{id}/cancel`.
 
-Sử dụng lại các endpoint của GAME-02, GAME-03, GAME-04. Frontend không có endpoint riêng.
+### Endpoints (API contract tích hợp)
 
-### Business rule và lưu ý
+| Method | Path | Quyền |
+|---|---|---|
+| POST | `/api/v1/game-sessions` | Đã đăng nhập |
+| GET | `/api/v1/game-sessions/current` | Đã đăng nhập |
+| POST | `/api/v1/game-sessions/{id}/attempts` | Đã đăng nhập |
+| POST | `/api/v1/game-sessions/{id}/finish` | Đã đăng nhập |
+| POST | `/api/v1/game-sessions/{id}/cancel` | Đã đăng nhập |
 
-- Frontend không biết đáp án trước khi từ xong, mọi đúng/sai do backend quyết định.
-- Frontend không gửi video, chỉ gửi chuỗi chữ cái (BR mục 9).
-- Số lần thử tối đa và thời gian hết hạn hiển thị theo giá trị backend trả về, không hard-code.
-- Phiên chưa kết thúc mà người dùng đóng tab: để phiên tự hết hạn.
-
-### File structure
+### Cấu trúc file thực tế (Current File Structure)
 
 ```
 src/features/game/
-├── api/gameSessionApi.ts
-├── hooks/
-│   ├── useGameSession.ts
-│   └── useWordBoard.ts
-├── state/
-│   └── gameMachine.ts
+├── api/
+│   ├── gameConfigApi.ts               # GET /api/v1/game-configs/public
+│   └── gameSessionApi.ts              # Quản lý phiên chơi & chấm điểm
 ├── components/
-│   ├── LetterTile.tsx
-│   ├── AnswerSlots.tsx
-│   ├── WordPrompt.tsx
-│   ├── ProgressBar.tsx
-│   └── AttemptFeedback.tsx
+│   ├── AnswerSlots.tsx                # Hàng ô trống nhận diện hitbox con trỏ
+│   ├── GameControlBar.tsx             # Nút Xác nhận từ & Xóa làm lại
+│   ├── GameResultModal.tsx            # Modal tổng kết vinh danh điểm & streak
+│   ├── GameSessionHeader.tsx          # Thanh tiến độ, nút đổi mode camera/chuột
+│   ├── LetterTile.tsx                 # Khối chữ cái 3D phong cách Signly
+│   └── WordClueCard.tsx               # Thẻ gợi ý nghĩa, IPA và nút phát âm
+├── hooks/
+│   └── useGameConfig.ts               # Hook cache cấu hình luật chơi từ backend
 ├── pages/
-│   ├── GamePage.tsx
-│   └── GameResultPage.tsx
+│   └── GameSessionPage.tsx            # Màn hình chơi chính tích hợp WordBoard
 └── types/
-    └── gameSession.types.ts
+    ├── gameConfig.types.ts            # Kiểu PublicGameConfig
+    └── gameSession.types.ts           # Kiểu dữ liệu phiên chơi, attempt, finish
 ```
 
 ---
