@@ -699,8 +699,8 @@ Các luật game lưu trong bảng `game_configs` và không được hard-code.
 
 ### Tasklist
 
-- [ ] Hook `useGameConfig()` gọi endpoint khi khởi động ứng dụng, lưu trong cache.
-- [ ] Kiểu `PublicGameConfig`.
+- [x] Hook `useGameConfig()` gọi endpoint khi khởi động ứng dụng, lưu trong cache.
+- [x] Kiểu `PublicGameConfig`.
 
 ### Endpoints (API contract do backend cung cấp)
 
@@ -929,16 +929,16 @@ Phần nhận diện cử chỉ (MediaPipe/TensorFlow.js) đã được nhóm l�
 
 ### Tasklist
 
-- [ ] Định nghĩa giao diện `InputController`: sự kiện con trỏ di chuyển, `grab` (gắp), `release` (thả), cùng hàm `start()` và `stop()`.
-- [ ] `GestureInputController`: khởi tạo MediaPipe, theo dõi bàn tay, nhận diện cử chỉ gắp (ví dụ chụm ngón cái và ngón trỏ), chuyển tọa độ sang tọa độ màn hình, làm mượt chuyển động.
-- [ ] `MouseInputController`: kéo thả bằng chuột và cảm ứng.
-- [ ] Hook `useInputController()`: ưu tiên cử chỉ nếu người dùng cho phép camera; khi từ chối quyền hoặc camera lỗi, chuyển sang chuột nếu `enableMouseMode = true`; nếu `enableMouseMode = false` thì hiển thị màn lỗi hướng dẫn.
-- [ ] Xin quyền camera có màn giải thích trước ("video chỉ xử lý trên máy bạn, không gửi đi đâu").
-- [ ] Dừng hẳn camera (`track.stop()`) khi rời màn chơi, tab bị ẩn hoặc phiên kết thúc.
-- [ ] Hiển thị con trỏ bàn tay trên màn hình, khung xem trước camera nhỏ có thể ẩn.
-- [ ] Đo FPS, cảnh báo nhẹ khi dưới ngưỡng dễ chơi (ví dụ dưới 15 FPS) và gợi ý đổi sang chuột.
-- [ ] Chống nhận nhầm: cần giữ cử chỉ ổn định một khoảng ngắn (vài khung hình) mới tính là gắp hoặc thả.
-- [ ] Viết bộ test cho phần logic không phụ thuộc camera (làm mượt, ngưỡng cử chỉ, chuyển chế độ).
+- [x] Định nghĩa giao diện `InputController`: sự kiện con trỏ di chuyển, `grab` (gắp), `release` (thả), cùng hàm `start()` và `stop()`.
+- [x] `GestureInputController`: khởi tạo MediaPipe, theo dõi bàn tay, nhận diện cử chỉ gắp (ví dụ chụm ngón cái và ngón trỏ), chuyển tọa độ sang tọa độ màn hình, làm mượt chuyển động.
+- [x] `MouseInputController`: kéo thả bằng chuột và cảm ứng.
+- [x] Hook `useInputController()`: ưu tiên cử chỉ nếu người dùng cho phép camera; khi từ chối quyền hoặc camera lỗi, chuyển sang chuột nếu `enableMouseMode = true`; nếu `enableMouseMode = false` thì hiển thị màn lỗi hướng dẫn.
+- [x] Xin quyền camera có màn giải thích trước ("video chỉ xử lý trên máy bạn, không gửi đi đâu").
+- [x] Dừng hẳn camera (`track.stop()`) khi rời màn chơi, tab bị ẩn hoặc phiên kết thúc.
+- [x] Hiển thị con trỏ bàn tay trên màn hình, khung xem trước camera nhỏ có thể ẩn.
+- [x] Đo FPS, cảnh báo nhẹ khi dưới ngưỡng dễ chơi (ví dụ dưới 15 FPS) và gợi ý đổi sang chuột.
+- [x] Chống nhận nhầm: cần giữ cử chỉ ổn định một khoảng ngắn (vài khung hình) mới tính là gắp hoặc thả.
+- [x] Viết bộ test cho phần logic không phụ thuộc camera (làm mượt, ngưỡng cử chỉ, chuyển chế độ).
 
 ### Endpoints
 
@@ -980,18 +980,18 @@ Màn hình chơi chính: với mỗi từ, người dùng thấy nghĩa tiếng 
 
 ### Tasklist
 
-- [ ] Máy trạng thái của phiên: `idle` → `loading` → `playing` → `submitting` → `wordFeedback` → `finished` / `expired` / `error`.
-- [ ] Khi vào màn chơi: gọi `GET /game-sessions/current` để khôi phục phiên đang dở (nếu có), nếu không thì tạo phiên mới.
-- [ ] Giao diện từ hiện tại: nghĩa, IPA, `AudioButton`, các ô trống đúng bằng `wordLength`, vùng chữ cái.
-- [ ] Gắp chữ vào ô trống bằng `InputController` (GAME-01); cho phép gắp lại chữ đã đặt trả về vùng chữ.
-- [ ] Nút **Xác nhận** (chỉ nộp khi người chơi bấm, và ô đã đầy) và nút **Xóa làm lại**. Không tự động nộp theo từng lần đặt chữ để tránh nộp nhầm do cử chỉ.
-- [ ] Gọi `POST .../attempts`, hiển thị đúng/sai, số lần thử còn lại, hiển thị đáp án khi từ đã xong (`correctWord`).
-- [ ] Thanh tiến độ `wordsDone/totalWords` và điểm hiện tại.
-- [ ] Khi `sessionDone=true` tự gọi `POST .../finish`.
-- [ ] Màn kết quả: thắng/thua, điểm, số từ đúng ngay lần đầu, streak hiện tại, nút "Chơi lại" và "Về danh sách topic".
-- [ ] Xử lý `SESSION_EXPIRED`: hiển thị hộp thoại và về danh sách topic. Thoát giữa chừng thì hỏi xác nhận rồi gọi `cancel`.
-- [ ] Chặn nộp trùng khi đang chờ phản hồi (disable nút, tránh double-click).
-- [ ] Giao diện cho cả hai chế độ nhập, bố cục co giãn theo kích thước màn hình máy tính.
+- [x] Máy trạng thái của phiên: `idle` → `loading` → `playing` → `submitting` → `wordFeedback` → `finished` / `expired` / `error`.
+- [x] Khi vào màn chơi: gọi `GET /game-sessions/current` để khôi phục phiên đang dở (nếu có), nếu không thì tạo phiên mới.
+- [x] Giao diện từ hiện tại: nghĩa, IPA, `AudioButton`, các ô trống đúng bằng `wordLength`, vùng chữ cái.
+- [x] Gắp chữ vào ô trống bằng `InputController` (GAME-01); cho phép gắp lại chữ đã đặt trả về vùng chữ.
+- [x] Nút **Xác nhận** (chỉ nộp khi người chơi bấm, và ô đã đầy) và nút **Xóa làm lại**. Không tự động nộp theo từng lần đặt chữ để tránh nộp nhầm do cử chỉ.
+- [x] Gọi `POST .../attempts`, hiển thị đúng/sai, số lần thử còn lại, hiển thị đáp án khi từ đã xong (`correctWord`).
+- [x] Thanh tiến độ `wordsDone/totalWords` và điểm hiện tại.
+- [x] Khi `sessionDone=true` tự gọi `POST .../finish`.
+- [x] Màn kết quả: thắng/thua, điểm, số từ đúng ngay lần đầu, streak hiện tại, nút "Chơi lại" và "Về danh sách topic".
+- [x] Xử lý `SESSION_EXPIRED`: hiển thị hộp thoại và về danh sách topic. Thoát giữa chừng thì hỏi xác nhận rồi gọi `cancel`.
+- [x] Chặn nộp trùng khi đang chờ phản hồi (disable nút, tránh double-click).
+- [x] Giao diện cho cả hai chế độ nhập, bố cục co giãn theo kích thước màn hình máy tính.
 
 ### Endpoints
 
