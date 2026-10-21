@@ -7,7 +7,6 @@ import {
   BookOpen,
   Trophy,
   BarChart2,
-  ShieldCheck,
   LogOut,
   LogIn,
   UserPlus,
@@ -74,13 +73,7 @@ export const Header: React.FC = () => {
             <span>Xếp hạng</span>
           </NavLink>
 
-          <NavLink
-            to="/admin/topics"
-            className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
-          >
-            <ShieldCheck size={16} />
-            <span>Admin</span>
-          </NavLink>
+
         </nav>
 
         {/* Right side status & action buttons */}
