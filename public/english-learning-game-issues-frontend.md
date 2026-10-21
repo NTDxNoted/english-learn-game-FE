@@ -96,26 +96,28 @@ Tài liệu BR và file SQL còn vài chỗ chưa khớp hoặc chưa nói rõ. 
 
 ## 2. Danh sách issue
 
-| ID | Tên | Phạm vi | Ưu tiên | Kích thước | Phụ thuộc |
-|---|---|---|---|---|---|
-| SETUP-01 | Khởi tạo repository frontend, môi trường, CI | FE | P0 | M | |
-| SETUP-04 | Frontend nền tảng: router, API client, layout | FE | P0 | M | SETUP-01 |
-| AUTH-01 | Đăng ký và xác minh OTP (AWS Cognito) | BE + FE | P0 | L | SETUP-03, 04, 05 |
-| AUTH-02 | Đăng nhập và làm mới token (AWS Cognito) | BE + FE | P0 | L | AUTH-01, SETUP-02 |
-| AUTH-03 | Đăng xuất, thông tin tài khoản, đồng bộ user, bảo vệ route | BE + FE | P0 | M | AUTH-02 |
-| AUTH-04 | Quên mật khẩu và đặt lại mật khẩu (AWS Cognito) | BE + FE | P1 | M | AUTH-01 |
-| CONFIG-01 | Đọc cấu hình game (`game_configs`) | BE + FE | P0 | S | SETUP-02, 03 |
-| TOPIC-01 | Danh sách topic | BE + FE | P0 | S | AUTH-03 |
-| VOCAB-01 | Danh sách từ vựng theo topic (màn học) | BE + FE | P0 | M | TOPIC-01 |
-| AUDIO-01 | Phát âm từ vựng (Polly + S3) | BE + FE | P1 | L | VOCAB-01, CONFIG-01 |
-| GAME-01 | Lớp nhập liệu: cử chỉ tay và chuột (FE) | FE | P0 | L | SETUP-04, CONFIG-01 |
-| GAME-05 | Màn hình chơi và màn hình kết quả (FE) | FE | P0 | L | GAME-01, 02, 03, 04 |
-| PROGRESS-01 | Tiến trình học và streak | BE + FE | P0 | M | GAME-04 |
-| LEADERBOARD-01 | Bảng xếp hạng tuần | BE + FE | P1 | M | GAME-04 |
-| ADMIN-01 | Admin: quản lý người dùng | BE + FE | P1 | M | AUTH-03 |
-| ADMIN-02 | Admin: quản lý topic | BE + FE | P1 | M | AUTH-03 |
-| ADMIN-03 | Admin: quản lý từ vựng và audio | BE + FE | P1 | L | ADMIN-02, AUDIO-01 |
-| ADMIN-04 | Admin: quản lý cấu hình game | BE + FE | P1 | S | CONFIG-01 |
+| ID | Tên | Phạm vi | Ưu tiên | Kích thước | Phụ thuộc | Trạng thái |
+|---|---|---|---|---|---|---|
+| SETUP-01 | Khởi tạo repository frontend, môi trường, CI | FE | P0 | M | | ✅ Đã hoàn thành |
+| SETUP-04 | Frontend nền tảng: router, API client, layout | FE | P0 | M | SETUP-01 | ✅ Đã hoàn thành |
+| AUTH-01 | Đăng ký và xác minh OTP (AWS Cognito) | BE + FE | P0 | L | SETUP-03, 04, 05 | ✅ Đã hoàn thành |
+| AUTH-02 | Đăng nhập và làm mới token (AWS Cognito) | BE + FE | P0 | L | AUTH-01, SETUP-02 | ✅ Đã hoàn thành |
+| AUTH-03 | Đăng xuất, thông tin tài khoản, đồng bộ user, bảo vệ route | BE + FE | P0 | M | AUTH-02 | ✅ Đã hoàn thành |
+| AUTH-04 | Quên mật khẩu và đặt lại mật khẩu (AWS Cognito) | BE + FE | P1 | M | AUTH-01 | ✅ Đã hoàn thành |
+| CONFIG-01 | Đọc cấu hình game (`game_configs`) | BE + FE | P0 | S | SETUP-02, 03 | ✅ Đã hoàn thành |
+| TOPIC-01 | Danh sách topic | BE + FE | P0 | S | AUTH-03 | ✅ Đã hoàn thành |
+| VOCAB-01 | Danh sách từ vựng theo topic (màn học) | BE + FE | P0 | M | TOPIC-01 | ⏳ Chưa làm |
+| AUDIO-01 | Phát âm từ vựng (Polly + S3) | BE + FE | P1 | L | VOCAB-01, CONFIG-01 | ⏳ Chưa làm |
+| GAME-01 | Lớp nhập liệu: cử chỉ tay và chuột (FE) | FE | P0 | L | SETUP-04, CONFIG-01 | ✅ Đã hoàn thành |
+| GAME-05 | Màn hình chơi và màn hình kết quả (FE) | FE | P0 | L | GAME-01, 02, 03, 04 | ✅ Đã hoàn thành |
+| PROGRESS-01 | Tiến trình học và streak | BE + FE | P0 | M | GAME-04 | ⏳ Chưa làm |
+| LEADERBOARD-01 | Bảng xếp hạng tuần | BE + FE | P1 | M | GAME-04 | ⏳ Chưa làm |
+| ADMIN-01 | Admin: quản lý người dùng | BE + FE | P1 | M | AUTH-03 | ⏳ Chưa làm |
+| ADMIN-02 | Admin: quản lý topic | BE + FE | P1 | M | AUTH-03 | ⏳ Chưa làm |
+| ADMIN-03 | Admin: quản lý từ vựng và audio | BE + FE | P1 | L | ADMIN-02, AUDIO-01 | ⏳ Chưa làm |
+| ADMIN-04 | Admin: quản lý cấu hình game | BE + FE | P1 | S | CONFIG-01 | ⏳ Chưa làm |
+
+> 📌 **Ghi chú tiến trình:** Xem báo cáo kỹ thuật chi tiết và sơ đồ tích hợp dịch vụ AWS tại [PULL_REQUEST_NOTES.md](./PULL_REQUEST_NOTES.md).
 
 Thứ tự gợi ý: nhóm SETUP, rồi AUTH-01 đến AUTH-03, TOPIC/VOCAB/CONFIG, GAME-01 đến GAME-05, PROGRESS, sau đó các issue P1.
 
@@ -135,14 +137,14 @@ Tạo repository **frontend riêng** (`english-learning-game-frontend`) để nh
 
 ### Tasklist
 
-- [ ] Tạo repo `english-learning-game-frontend`.
-- [ ] Viết `README.md`: yêu cầu cài đặt (Node LTS), cách chạy, cách build, cách chạy lint, cách trỏ tới backend qua `VITE_API_BASE_URL`.
-- [ ] Thêm `.gitignore`, `.editorconfig`, mẫu Pull Request, bộ label issue (`bug`, `P0`, `P1`).
-- [ ] Quy ước nhánh: `main` (ổn định), `develop`, nhánh tính năng `feature/<ID>-<mô-tả-ngắn>`.
-- [ ] GitHub Actions: lint + build khi có Pull Request.
-- [ ] Khởi tạo Vite + React + TypeScript, bật `strict`.
-- [ ] Cấu hình ESLint + Prettier, script `lint`, `build`, `dev`.
-- [ ] `.env.example` với `VITE_API_BASE_URL`.
+- [x] Tạo repo `english-learning-game-frontend`.
+- [x] Viết `README.md`: yêu cầu cài đặt (Node LTS), cách chạy, cách build, cách chạy lint, cách trỏ tới backend qua `VITE_API_BASE_URL`.
+- [x] Thêm `.gitignore`, `.editorconfig`, mẫu Pull Request, bộ label issue (`bug`, `P0`, `P1`).
+- [x] Quy ước nhánh: `main` (ổn định), `develop`, nhánh tính năng `feature/<ID>-<mô-tả-ngắn>`.
+- [x] GitHub Actions: lint + build khi có Pull Request.
+- [x] Khởi tạo Vite + React + TypeScript, bật `strict`.
+- [x] Cấu hình ESLint/Oxlint, Vitest, script `lint`, `build`, `test`, `dev`.
+- [x] `.env.example` với `VITE_API_BASE_URL`.
 
 ### Endpoints
 
@@ -188,13 +190,13 @@ Dựng bộ khung frontend TypeScript: cấu trúc thư mục theo tính năng, 
 
 - [ ] Cấu trúc thư mục theo tính năng (xem File structure).
 - [ ] Kiểu dùng chung: `ApiResponse<T>`, `ApiError`, `PageResponse<T>` khớp format response chuẩn.
-- [ ] Axios instance: `baseURL` từ `VITE_API_BASE_URL`; interceptor request gắn `Authorization: Bearer`; interceptor response bóc `data` và chuyển lỗi thành `ApiError` có `errorCode`.
-- [ ] Khi nhận 401 (`TOKEN_EXPIRED` hoặc `UNAUTHORIZED`): xóa token, về trang đăng nhập (chi tiết hoàn thiện ở AUTH-03).
-- [ ] TanStack Query provider, cấu hình retry hợp lý (không retry lỗi 4xx).
-- [ ] React Router: nhóm route công khai (`/login`, `/register`, `/verify-register`, `/forgot-password`, `/reset-password`), riêng tư (`/topics`, `/game/...`, `/progress`, `/leaderboard`), admin (`/admin/...`). Guard để trống, AUTH-03 hoàn thiện.
-- [ ] Layout cơ bản: header, vùng nội dung, trang 404, trang lỗi.
-- [ ] Hệ thống thông báo (toast) và component loading/empty/error dùng chung.
-- [ ] Quản lý biến môi trường (`.env.example`).
+- [x] Axios instance: `baseURL` từ `VITE_API_BASE_URL`; interceptor request gắn `Authorization: Bearer`; interceptor response bóc `data` và chuyển lỗi thành `ApiError` có `errorCode`.
+- [x] Khi nhận 401 (`TOKEN_EXPIRED` hoặc `UNAUTHORIZED`): xóa token, về trang đăng nhập (chi tiết hoàn thiện ở AUTH-03 kèm Mutex refresh).
+- [x] TanStack Query provider, cấu hình retry hợp lý (không retry lỗi 4xx).
+- [x] React Router: nhóm route công khai (`/login`, `/register`, `/verify-register`, `/forgot-password`, `/reset-password`), riêng tư (`/topics`, `/game/...`, `/progress`, `/leaderboard`), admin (`/admin/...`). Guard hoàn thiện qua `<ProtectedRoute>`.
+- [x] Layout cơ bản: header, vùng nội dung, trang 404, trang lỗi.
+- [x] Hệ thống thông báo (toast) và component loading/empty/error dùng chung.
+- [x] Quản lý biến môi trường (`.env.example`).
 
 ### Endpoints
 
@@ -258,7 +260,7 @@ Người dùng tạo tài khoản bằng email, mật khẩu và tên hiển th�
 - [x] Đăng ký thành công: chuyển sang `/verify-register` kèm email (qua route state hoặc query, **không** kèm mật khẩu).
 - [x] Trang `VerifyRegisterPage` (`/verify-register`): ô nhập mã OTP, nút xác nhận, nút "Gửi lại mã" có đếm ngược 60 giây. Nếu không có email từ trang trước thì cho nhập email.
 - [x] Hiển thị các lỗi `OTP_INVALID`, `OTP_EXPIRED`, `TOO_MANY_REQUESTS` bằng thông báo thân thiện.
-- [ ] Xác minh thành công: toast và chuyển sang `/login`.
+- [x] Xác minh thành công: toast và chuyển sang `/login`.
 
 ### Endpoints (API contract do backend cung cấp)
 
