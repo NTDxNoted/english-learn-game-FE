@@ -1,6 +1,6 @@
-﻿import React from 'react';
+import React from 'react';
 import { useLocation, useSearchParams, useNavigate, Link } from 'react-router-dom';
-import { KeyRound, ShieldCheck } from 'lucide-react';
+import { KeyRound } from 'lucide-react';
 import { VerifyRegisterForm } from '../components/VerifyRegisterForm';
 import { useToast } from '../../../app/providers/useToast';
 
@@ -49,10 +49,6 @@ export const VerifyRegisterPage: React.FC = () => {
               Đăng nhập ngay
             </Link>
           </p>
-          <div className="auth-note">
-            <ShieldCheck size={14} className="inline mr-1" />
-            Mã OTP có thời hạn theo quy định của AWS Cognito User Pool. Vui lòng kiểm tra kỹ cả thư mục Hộp thư đến (Inbox) và Thư rác (Spam).
-          </div>
         </div>
       </div>
     </div>
