@@ -753,9 +753,9 @@ Sau khi đăng nhập, người dùng thấy các card topic (Food, Travel, Tech
 
 ### Tasklist
 
-- [ ] Trang `TopicListPage`: lưới card topic, trạng thái loading/lỗi/rỗng.
-- [ ] Card có biểu tượng (`iconUrl`, có ảnh thay thế nếu null), thanh tiến độ `completedWords/totalWords`.
-- [ ] Bấm card đi tới `/topics/:topicId` (màn học, VOCAB-01).
+- [x] Trang `TopicListPage`: lưới card topic, trạng thái loading/lỗi/rỗng.
+- [x] Card có biểu tượng (`iconUrl`, có ảnh thay thế nếu null), thanh tiến độ `completedWords/totalWords`.
+- [x] Bấm card đi tới `/topics/:topicId` (màn học, VOCAB-01).
 
 ### Endpoints (API contract do backend cung cấp)
 
