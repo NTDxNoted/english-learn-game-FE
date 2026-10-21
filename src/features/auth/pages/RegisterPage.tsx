@@ -1,6 +1,6 @@
-﻿import React from 'react';
+import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { UserPlus, Sparkles } from 'lucide-react';
+import { UserPlus } from 'lucide-react';
 import { RegisterForm } from '../components/RegisterForm';
 import { useToast } from '../../../app/providers/useToast';
 
@@ -43,10 +43,6 @@ export const RegisterPage: React.FC = () => {
               Nhập mã xác minh tại đây
             </Link>
           </p>
-          <div className="auth-note">
-            <Sparkles size={14} className="inline mr-1" />
-            Tài khoản được bảo vệ qua AWS Cognito User Pool. Mã OTP kích hoạt sẽ được gửi tự động qua email.
-          </div>
         </div>
       </div>
     </div>
