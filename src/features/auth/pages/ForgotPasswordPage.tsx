@@ -1,8 +1,8 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Link, useNavigate } from 'react-router-dom';
-import { HelpCircle, ArrowLeft, ArrowRight, Loader2, AlertCircle, Sparkles } from 'lucide-react';
+import { HelpCircle, ArrowLeft, ArrowRight, Loader2, AlertCircle } from 'lucide-react';
 import { forgotPasswordSchema, type ForgotPasswordFormData } from '../schemas/forgotPasswordSchema';
 import { authApi } from '../api/authApi';
 import { useToast } from '../../../app/providers/useToast';
@@ -143,10 +143,6 @@ export const ForgotPasswordPage: React.FC = () => {
             <ArrowLeft size={16} />
             <span>Quay lại Đăng nhập</span>
           </Link>
-          <div className="auth-note">
-            <Sparkles size={14} className="inline mr-1" />
-            Để bảo vệ thông tin tài khoản, hệ thống sẽ gửi mã đến email nếu địa chỉ tồn tại trên AWS Cognito.
-          </div>
         </div>
       </div>
     </div>
