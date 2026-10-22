@@ -5,6 +5,7 @@ import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { AuthProvider } from './context/AuthProvider';
 import { LoginForm } from './components/LoginForm';
+import { LoginPage } from './pages/LoginPage';
 import { useAuth } from './hooks/useAuth';
 import { authApi } from './api/authApi';
 import { tokenStorage } from '../../lib/tokenStorage';
@@ -71,4 +72,40 @@ it('keeps tokens and offers retry when profile lookup has a transient failure', 
   render(<AuthProvider><Probe /></AuthProvider>);
   expect(await screen.findByRole('button', { name: 'Thử lại' })).toBeTruthy();
   expect(tokenStorage.getRefreshToken()).toBe('refresh');
+});
+it('renders Google sign-in button and removes the Cognito footer note on LoginPage', async () => {
+  render(
+    <AuthProvider>
+      <MemoryRouter initialEntries={['/login']}>
+        <Routes>
+          <Route path="/login" element={<LoginPage />} />
+        </Routes>
+      </MemoryRouter>
+    </AuthProvider>,
+  );
+  expect(await screen.findByRole('button', { name: 'Tiếp tục với Google' })).toBeTruthy();
+  expect(screen.queryByText(/Xác thực bảo mật qua AWS Cognito User Pool/i)).toBeNull();
+});
+it('exchanges Google OAuth code, syncs user profile, and navigates to topics', async () => {
+  const learnerProfile = { ...profile, role: 'learner' as const };
+  const exchangeSpy = vi.spyOn(authApi, 'exchangeGoogleCode').mockResolvedValue(dto(tokens));
+  const syncSpy = vi.spyOn(authApi, 'syncUser').mockResolvedValue(dto(learnerProfile));
+
+  render(
+    <AuthProvider>
+      <MemoryRouter initialEntries={['/login?code=google_oauth_code_123']}>
+        <Routes>
+          <Route path="/login" element={<LoginForm />} />
+          <Route path="/topics" element={<p>LEARNER ROUTE</p>} />
+        </Routes>
+      </MemoryRouter>
+    </AuthProvider>,
+  );
+
+  expect(await screen.findByText('LEARNER ROUTE')).toBeTruthy();
+  expect(exchangeSpy).toHaveBeenCalledWith(
+    expect.objectContaining({ code: 'google_oauth_code_123' }),
+  );
+  expect(syncSpy).toHaveBeenCalledTimes(1);
+  expect(toast.success).toHaveBeenCalledTimes(1);
 });
