@@ -61,3 +61,21 @@ Nếu nhóm không thể bật scope này, bản bốn scope chưa đủ điều
 Chọn cổng 3000 theo vite.config.ts của bản FE đã đọc, có strictPort=true. Nếu nhóm đổi cổng sau này, phải thay đồng bộ các URL liên quan; không dùng lẫn 3000 và 5173.
 
 Callback Google → Cognito và callback Cognito → FE là hai URL khác nhau. Proxy /api chỉ áp dụng cho request API của FE, không thay thế callback OAuth.
+
+## 3. Khác biệt giữa BE đang có và hợp đồng V2
+
+| Nội dung | Code trước V2 | Mục tiêu V2 |
+|---|---|---|
+| API Google đọc profile user mới | Có gọi GetUser và kiểm tra email | Bỏ bước đọc profile/email tại API Google |
+| Kiểm tra email trùng | Có ở API Google; Sync kiểm tra sau INSERT cho user mới | Chốt trách nhiệm tại Sync, kiểm tra sớm trước INSERT |
+| Mã lỗi email | API Google có GOOGLE_ACCOUNT_EMAIL_CONFLICT; Sync có thể chỉ trả message | Sync thống nhất EMAIL_ALREADY_EXISTS với HTTP 409 |
+| Hồ sơ user mới trong Sync | Có thể đọc hai lần | Một lần thông thường; đọc lại khi xử lý user do request khác tạo |
+| Số lần đọc profile cho Google user mới | Có thể ba lần cho exchange + Sync | Một lần thông thường trong Sync |
+| Callback trong ví dụ cũ | Thường là 5173 | Local chung dùng 3000 |
+| FE base URL trong ví dụ cũ | Có ví dụ gọi thẳng BE | Giữ /api qua Vite Proxy |
+| Refresh | BE đã có SDK mặc định và OAuth tùy cấu hình | Giữ sdk trong phạm vi tích hợp V1 này |
+| Cấu trúc FE | Có đề xuất bốn file mới | Giữ callback/LoginForm hiện có nếu đáp ứng đúng hành vi |
+
+**Mã EMAIL_ALREADY_EXISTS là quyết định contract V2**, chưa phải khẳng định BE đã sửa handler theo mã này. Cần sửa cả kiểm tra sớm lẫn handler UNIQUE email để FE nhận cùng cấu trúc khi có race.
+
+Trong thời gian chuyển phiên bản, FE có thể nhận diện cả mã cũ và HTTP 409. Khi nghiệm thu V2, kiểm thử phải xác nhận code thống nhất tại Sync.
