@@ -1,0 +1,63 @@
+# Đặc tả thống nhất Google Login — Backend và Frontend — V2
+
+**Dự án:** Alphabet Universe  
+**Ngày chốt tài liệu:** 10/11/2026  
+**Đối tượng:** Member Backend, Frontend và người quản lý Google/Cognito.  
+**Trạng thái:** Hợp đồng V2 và danh sách việc cần thực hiện, chưa phải báo cáo V2 đã triển khai thành công.
+
+Hai bên dùng file này làm chuẩn cho các quyết định Google Login bên dưới. Các tài liệu Google Login trước đó phản ánh thiết kế/bản triển khai trước; những khác biệt được chốt lại tại mục 3.
+
+Việc tạo file này không sửa Java/TypeScript, database, biến môi trường đang chạy hoặc cấu hình AWS. Mọi mục nghiệm thu cần có kết quả kiểm thử thực tế sau khi hai bên hoàn thành.
+
+## 1. Phương án V1 của sản phẩm được chốt
+
+| Hạng mục | Quyết định chung |
+|---|---|
+| Đăng nhập Google | Cognito làm trung gian giữa Google và ứng dụng |
+| OAuth flow | Authorization Code + PKCE S256 |
+| Bên khởi tạo state/verifier/challenge | FE |
+| Bên kiểm tra state callback | FE, đối chiếu giao dịch đã lưu trong cùng tab |
+| Bên đổi authorization code | BE qua POST /api/auth/google |
+| Token gọi API | Cognito accessToken |
+| Token/hồ sơ trước Sync | Chưa được coi là phiên đăng nhập ứng dụng thành công |
+| Bên đọc hồ sơ và ghi user local | POST /api/auth/sync |
+| Scope OAuth yêu cầu tới Cognito | openid email profile aws.cognito.signin.user.admin |
+| API đọc hồ sơ | GetUser trong phạm vi đã chọn đủ scope |
+| API cập nhật tên | PATCH /api/users/me hiện có, sử dụng UpdateUserAttributes |
+| Refresh V1 | Giữ nhánh SDK REFRESH_TOKEN_AUTH, không bật rotation trong đợt tích hợp này |
+| FE gọi BE khi dev | VITE_API_BASE_URL=/api qua Vite Proxy |
+| Cổng local thống nhất | FE 3000, BE 8080 |
+| Callback ứng dụng local | http://localhost:3000/callback |
+| Trùng email khác Cognito sub | Sync trả 409; không tự liên kết tài khoản |
+| Vai trò | User mới learner; user cũ giữ nguyên role/status |
+| Cấu trúc file FE | Tái sử dụng file hiện có; không bắt buộc tạo bốn file riêng |
+| Database | Không thêm bảng/cột cho chức năng cơ bản |
+
+### Lưu ý về scope — điều kiện để áp dụng bản này
+
+FE đã báo App Client hiện chỉ bật ba scope và gặp invalid_scope khi yêu cầu scope thứ tư. Đây là thông tin FE cung cấp; chưa được xác nhận trực tiếp từ AWS Console trong lần tạo tài liệu này.
+
+**Người quản lý Cognito phải bật aws.cognito.signin.user.admin trên đúng App Client trước khi kiểm thử luồng bốn scope.** FE không tự bỏ scope; BE không tự bỏ kiểm tra để đưa người dùng vào một luồng hồ sơ chưa hỗ trợ.
+
+Scope này phục vụ thao tác hồ sơ của chính user. Nó không cấp role admin của ứng dụng hoặc quyền IAM quản trị hệ thống. GetUser và UpdateUserAttributes đều yêu cầu scope tương ứng.
+
+Nguồn: [GetUser](https://docs.aws.amazon.com/cognito-user-identity-pools/latest/APIReference/API_GetUser.html), [UpdateUserAttributes](https://docs.aws.amazon.com/cognito-user-identity-pools/latest/APIReference/API_UpdateUserAttributes.html).
+
+Nếu nhóm không thể bật scope này, bản bốn scope chưa đủ điều kiện triển khai. Khi đó cần đặc tả khác cho userInfo và cách cập nhật hồ sơ, thay vì mỗi bên tự đổi một phần. Không thêm fallback chung khi token sai/hết hạn hoặc AWS WAF chặn.
+
+## 2. Các giá trị phải giống nhau ở BE, FE và AWS
+
+| Giá trị | Local đã chốt | Nơi sử dụng |
+|---|---|---|
+| FE origin | http://localhost:3000 | Vite, FRONTEND_URL, CORS |
+| FE callback | http://localhost:3000/callback | FE authorize, BE allowlist, Cognito Allowed callback URLs |
+| FE sign-out URL | http://localhost:3000/login | BE logout URL, Cognito Allowed sign-out URLs |
+| BE target | http://localhost:8080 | Vite Proxy |
+| FE API base URL | /api | Axios/apiClient |
+| Cognito domain | https://<prefix>.auth.<region>.amazoncognito.com | Cùng domain ở BE và FE |
+| Cognito App Client ID | <cognito-app-client-id> | Cùng giá trị ở BE, FE và App Client đang cấu hình |
+| Google callback | https://<cognito-domain>/oauth2/idpresponse | Google OAuth Client Authorized redirect URIs |
+
+Chọn cổng 3000 theo vite.config.ts của bản FE đã đọc, có strictPort=true. Nếu nhóm đổi cổng sau này, phải thay đồng bộ các URL liên quan; không dùng lẫn 3000 và 5173.
+
+Callback Google → Cognito và callback Cognito → FE là hai URL khác nhau. Proxy /api chỉ áp dụng cho request API của FE, không thay thế callback OAuth.
