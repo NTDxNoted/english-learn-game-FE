@@ -79,3 +79,36 @@ Callback Google → Cognito và callback Cognito → FE là hai URL khác nhau. 
 **Mã EMAIL_ALREADY_EXISTS là quyết định contract V2**, chưa phải khẳng định BE đã sửa handler theo mã này. Cần sửa cả kiểm tra sớm lẫn handler UNIQUE email để FE nhận cùng cấu trúc khi có race.
 
 Trong thời gian chuyển phiên bản, FE có thể nhận diện cả mã cũ và HTTP 409. Khi nghiệm thu V2, kiểm thử phải xác nhận code thống nhất tại Sync.
+
+## 4. Flow liên thông
+
+~~~mermaid
+sequenceDiagram
+    actor U as Người dùng
+    participant FE as Frontend
+    participant C as Cognito
+    participant G as Google
+    participant BE as Backend
+    participant DB as PostgreSQL
+    U->>FE: Tiếp tục với Google
+    FE->>FE: Tạo state + verifier + challenge S256
+    FE->>C: Điều hướng authorize với bốn scope
+    C->>G: Xác thực Google
+    G-->>C: Kết quả xác thực
+    C-->>FE: /callback?code=...&state=...
+    FE->>FE: Kiểm tra state và giao dịch
+    FE->>BE: POST /api/auth/google
+    BE->>C: Đổi code + verifier tại /oauth2/token
+    C-->>BE: Bộ token Cognito
+    BE->>BE: Verify access token và scope
+    BE->>DB: Kiểm tra trạng thái user nếu đã tồn tại
+    BE-->>FE: Token nếu hợp lệ
+    FE->>FE: Giữ token tạm, chưa authenticated
+    FE->>BE: POST /api/auth/sync bằng token tạm
+    BE->>C: GetUser theo quy tắc transaction Sync
+    BE->>DB: Kiểm tra email, tạo/cập nhật user
+    BE-->>FE: UserResponse ACTIVE hoặc lỗi
+    FE->>FE: Chỉ commit phiên nếu Sync thành công
+~~~
+
+HTTP 200 của /auth/google chỉ xác nhận đổi code và kiểm tra tương ứng đã thành công. Nó không có nghĩa PostgreSQL đã tạo user hoặc người dùng đã được vào ứng dụng.
