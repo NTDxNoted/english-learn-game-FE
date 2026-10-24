@@ -230,3 +230,144 @@ FE dọn phiên rồi điều hướng trình duyệt tới logoutUrl hợp lệ
 | 503 | COGNITO_UNAVAILABLE | Network/timeout/dịch vụ | Xử lý theo giai đoạn exchange hay Sync |
 
 Các code này là contract ứng dụng. BE phải map nguyên nhân thực tế, không đổi mọi lỗi Cognito thành 401 hoặc trả nguyên error_description/stack trace.
+
+## 6. Phần việc Backend
+
+### 6.1. API Google sau khi điều chỉnh
+
+1. Validate DTO, verifier và allowlist.
+2. Đổi code bằng CognitoOAuthService; giữ form encoding, timeout và không tự retry.
+3. Verify access token bằng decoder hiện tại, giữ issuer/signature/expiry/token_use/client_id/sub.
+4. Kiểm tra đủ bốn scope cho luồng Google của bản này.
+5. Nếu user local đã tồn tại theo sub: kiểm tra ACTIVE/BLOCKED.
+6. Nếu chưa có local: cho qua tới Sync.
+7. Trả token; không gọi GetUser, không đọc email từ FE, không tạo user ở method này.
+
+Việc xung đột email chuyển về Sync. FE phải áp dụng điều kiện commit phiên ở mục 7.3, không điều hướng ngay khi exchange 200.
+
+### 6.2. Sync — kiểm tra email và giảm gọi AWS
+
+Giữ transaction READ_COMMITTED và các ràng buộc DB hiện tại.
+
+**User đã tồn tại:**
+
+1. Tìm theo sub bằng SELECT FOR UPDATE ngay lần đọc đầu.
+2. Kiểm tra ACTIVE trước khi đồng bộ.
+3. Đọc hồ sơ Cognito sau khi đã lấy khóa; không dùng snapshot đọc trước lúc chờ khóa để ghi đè.
+4. Kiểm tra email thuộc user khác, cập nhật field hợp lệ, giữ role/status/createdAt.
+
+**User chưa tồn tại:**
+
+1. Đọc hồ sơ một lần, validate email, chuẩn hóa tên.
+2. Kiểm tra chủ email trước INSERT. Chủ email có sub khác thì trả 409 EMAIL_ALREADY_EXISTS.
+3. Nếu chủ email có cùng sub do request khác vừa Sync xong, xử lý như user hiện có: khóa bản ghi, kiểm tra trạng thái và đọc hồ sơ mới khi cần.
+4. INSERT ON CONFLICT(cognito_sub) DO NOTHING; sử dụng số dòng insertIfAbsent trả về.
+5. Nếu INSERT trả 1: transaction đang sở hữu bản ghi mới; lấy entity tương ứng và dùng hồ sơ vừa đọc, không gọi mạng thêm chỉ để lấy lại cùng hồ sơ.
+6. Nếu INSERT trả 0: đã có request khác tạo cùng sub. Lấy khóa, kiểm tra trạng thái rồi đọc hồ sơ mới sau khi lấy khóa; không dùng dữ liệu cũ đã đọc trước lúc chờ.
+7. Apply dữ liệu, commit và trả UserResponse.
+
+UNIQUE email vẫn là lớp bảo vệ cuối cùng. Hai request có thể vượt qua precheck cùng lúc; handler UNIQUE email phải trả 409 EMAIL_ALREADY_EXISTS sau khi transaction rollback.
+
+Không catch DataIntegrityViolationException rồi tiếp tục query trong transaction đã lỗi. Không loại bỏ UNIQUE để tránh exception.
+
+Mục tiêu là một lần GetUser thông thường cho mỗi Sync; ngoại lệ race có thể cần đọc lại. Đây không phải lời hứa mọi request đều chỉ gọi mạng đúng một lần.
+
+### 6.3. Hồ sơ, tên và quyền
+
+- User mới mặc định learner, ACTIVE; tên thiếu dùng fallback đã thống nhất.
+- User cũ giữ role/status; tên provider rỗng thì giữ tên local hiện có.
+- Không tự reactivate BLOCKED trong Sync.
+- Giữ PATCH /api/users/me cập nhật tên qua Cognito theo nghiệp vụ hiện tại.
+- Mapping Google name có thể cập nhật lại thuộc tính Cognito khi login Google lần sau. V1 tiếp tục lấy Cognito/provider làm nguồn khi Sync; phải test và thống nhất UX, không hứa tên tự sửa sẽ luôn thắng mapping Google.
+- Muốn ưu tiên tên riêng của ứng dụng vĩnh viễn là một thay đổi nguồn dữ liệu khác, không tự triển khai trong lần này.
+
+### 6.4. File BE cần sửa/kiểm tra
+
+| File | Việc cần làm |
+|---|---|
+| [AuthServiceImpl.java](D:/AWS/PJ_AWS_1/aws-workshop-main/backend/src/main/java/com/aws/alphabetuniverse/auth/service/impl/AuthServiceImpl.java) | Bỏ GetUser/email check tại API Google, giữ JWT/status và default refresh SDK |
+| [UserSyncServiceImpl.java](D:/AWS/PJ_AWS_1/aws-workshop-main/backend/src/main/java/com/aws/alphabetuniverse/user/service/impl/UserSyncServiceImpl.java) | Precheck email và nhánh INSERT 1/0, giữ đọc mới sau khóa cho trường hợp cần thiết |
+| [UserRepository.java](D:/AWS/PJ_AWS_1/aws-workshop-main/backend/src/main/java/com/aws/alphabetuniverse/user/repository/UserRepository.java) | Tái sử dụng findByEmailIgnoreCase, method khóa và số dòng insertIfAbsent; không khai báo trùng |
+| [GlobalExceptionHandler.java](D:/AWS/PJ_AWS_1/aws-workshop-main/backend/src/main/java/com/aws/alphabetuniverse/common/exception/GlobalExceptionHandler.java) | Đồng nhất lỗi email sớm và UNIQUE thành 409 EMAIL_ALREADY_EXISTS |
+| [CognitoOAuthSettings.java](D:/AWS/PJ_AWS_1/aws-workshop-main/backend/src/main/java/com/aws/alphabetuniverse/auth/config/CognitoOAuthSettings.java) | Cấu hình callback 3000, giữ sdk mặc định |
+| [GoogleAuthRequest.java](D:/AWS/PJ_AWS_1/aws-workshop-main/backend/src/main/java/com/aws/alphabetuniverse/auth/dto/GoogleAuthRequest.java) | Giữ ba field và validation, cập nhật ví dụ Swagger nếu cần |
+| [CognitoOAuthServiceImpl.java](D:/AWS/PJ_AWS_1/aws-workshop-main/backend/src/main/java/com/aws/alphabetuniverse/auth/service/impl/CognitoOAuthServiceImpl.java) | Giữ đổi code PKCE, mapping lỗi, timeout và không replay |
+| [CognitoUserAttributeServiceImpl.java](D:/AWS/PJ_AWS_1/aws-workshop-main/backend/src/main/java/com/aws/alphabetuniverse/user/service/impl/CognitoUserAttributeServiceImpl.java) | GetUser/UpdateUserAttributes theo scope đã chốt; không catch-all fallback |
+| [SecurityConfig.java](D:/AWS/PJ_AWS_1/aws-workshop-main/backend/src/main/java/com/aws/alphabetuniverse/security/config/SecurityConfig.java) | Giữ public riêng POST Google, protected Sync và nghiệp vụ |
+| [ActiveUserFilter.java](D:/AWS/PJ_AWS_1/aws-workshop-main/backend/src/main/java/com/aws/alphabetuniverse/security/filter/ActiveUserFilter.java) | Giữ bypass đúng endpoint public, vẫn kiểm tra local trên protected API |
+| [CorsConfig.java](D:/AWS/PJ_AWS_1/aws-workshop-main/backend/src/main/java/com/aws/alphabetuniverse/common/config/CorsConfig.java) | Cho origin dev cần thiết, preflight đúng |
+| [application.properties](D:/AWS/PJ_AWS_1/aws-workshop-main/backend/src/main/resources/application.properties) | Mapping environment đúng callback/refresh; không commit bí mật local |
+
+Không cần thêm bảng, endpoint profile thứ hai hoặc ID token decoder cho phương án này. Service HTTP hiện có tiếp tục giữ interface/impl đúng cấu trúc BE.
+
+### 6.5. Phụ lục chi tiết các điểm kỹ thuật BE dễ sót khi code (Đã đối chiếu với source BE thực tế)
+
+Để member Backend code không bị lỗi compile hoặc lệch với source hiện tại (`d:\english-learn-game-BE-main`), cần lưu ý chính xác **5 điểm trong source hiện tại**:
+
+#### (1) `UserRepository.java` hiện chưa có `findByEmailIgnoreCase(String email)` (không khóa)
+- Trong `UserRepository.java` hiện chỉ có:
+  - `Optional<User> findByEmail(String email);` (phân biệt hoa/thường)
+  - `Optional<User> findByEmailIgnoreCaseForUpdate(String email);` (có `@Lock(PESSIMISTIC_WRITE)`)
+  - `boolean existsByEmailIgnoreCaseAndIdNot(String email, Long id);`
+- **Cần thêm vào `UserRepository.java`** (để precheck email cho User mới trước khi `insertIfAbsent` hoặc dùng `findByEmailIgnoreCaseForUpdate` trong transaction):
+  ```java
+  Optional<User> findByEmailIgnoreCase(String email);
+  ```
+
+#### (2) `GlobalExceptionHandler.java` — Cần thêm mã `"code": "EMAIL_ALREADY_EXISTS"` ở cả 2 nơi
+- Hiện tại trong `GlobalExceptionHandler.java` (dòng 168–176), `handleDataIntegrityViolation` khi gặp `isEmailUniqueViolation(exception)` đang chỉ trả `Map.of("message", "Email is already used by another account")` (thiếu `"code"`).
+- Đồng thời `handleResponseStatus(ResponseStatusException)` (dòng 46–51) cũng chỉ trả `Map.of("message", message)` (không có `"code"`).
+- **Cần sửa trong `GlobalExceptionHandler.java`:**
+  1. Trong `handleDataIntegrityViolation`:
+     ```java
+     if (isEmailUniqueViolation(exception)) {
+         return ResponseEntity
+                 .status(HttpStatus.CONFLICT)
+                 .body(Map.of(
+                         "code", "EMAIL_ALREADY_EXISTS",
+                         "message", "Email đã thuộc tài khoản khác. Vui lòng đăng nhập bằng phương thức đã đăng ký."
+                 ));
+     }
+     ```
+  2. Khi precheck phát hiện trùng email trong `UserSyncServiceImpl`, ném `CognitoOAuthException` (hoặc exception riêng có `code = "EMAIL_ALREADY_EXISTS"`, `HttpStatus.CONFLICT`) để handler trả về đúng JSON `{ "code": "EMAIL_ALREADY_EXISTS", "message": "..." }` thay vì `ResponseStatusException` chỉ có `message`.
+  3. Thêm `@ExceptionHandler(MethodArgumentNotValidException.class)` (nếu chưa có) trả về HTTP `400` kèm `"code": "VALIDATION_ERROR"` khi `GoogleAuthRequest` thiếu `code`, `redirectUri`, hoặc `codeVerifier` sai pattern `^[A-Za-z0-9._~-]{43,128}$`.
+
+#### (3) `UserSyncServiceImpl.java` — Tránh `displayName = null` khi `insertIfAbsent` cho tài khoản Google không có `name`
+- Bảng `public.users` có cột `display_name NOT NULL`.
+- Nếu tài khoản Google của người dùng chưa đặt `name` (hoặc Cognito attribute `name` trống), `DisplayNameNormalizer.normalizeFromCognito(initialProfile.displayName())` sẽ trả về `null`, dẫn tới `insertIfAbsent` bị lỗi `NULL not allowed for column "display_name"`.
+- **Cần xử lý trong `UserSyncServiceImpl.java` khi `user == null` (user mới):**
+  ```java
+  String email = initialProfile.email().trim();
+  String displayName = DisplayNameNormalizer.normalizeFromCognito(initialProfile.displayName());
+  if (displayName == null || displayName.isBlank()) {
+      String localPart = email.contains("@") ? email.substring(0, email.indexOf('@')) : email;
+      displayName = DisplayNameNormalizer.normalizeFromCognito(localPart);
+      if (displayName == null || displayName.isBlank()) {
+          displayName = "Learner";
+      }
+  }
+  ```
+- Ngược lại, khi `user != null` (user cũ đã có trong DB): giữ nguyên logic hiện tại — nếu `displayName` từ Cognito là `null` thì **giữ nguyên `user.getDisplayName()` cũ**.
+
+#### (4) Kiểm tra claim `scope` trong Access Token tại `AuthServiceImpl.loginWithGoogle`
+- Cognito Access Token lưu danh sách scopes trong claim `"scope"` dưới dạng một chuỗi cách nhau bởi khoảng trắng (ví dụ: `"aws.cognito.signin.user.admin openid profile email"`).
+- Cách kiểm tra chuẩn trong `AuthServiceImpl`:
+  ```java
+  String scopeClaim = authenticatedJwt.getClaimAsString("scope");
+  Set<String> scopes = scopeClaim == null || scopeClaim.isBlank()
+          ? Set.of()
+          : Set.of(scopeClaim.trim().split("\\s+"));
+  if (!scopes.containsAll(Set.of("openid", "email", "profile", "aws.cognito.signin.user.admin"))) {
+      throw new CognitoOAuthException(
+              HttpStatus.BAD_GATEWAY,
+              "COGNITO_OAUTH_CONFIG_ERROR",
+              "Token Google không đủ quyền truy cập hồ sơ (thiếu scope bắt buộc)."
+      );
+  }
+  ```
+
+#### (5) Checklist 3 thao tác bắt buộc trên AWS Cognito Console trước khi test
+Người giữ tài khoản AWS cần vào **AWS Cognito -> User Pool `us-east-1_i2fjAyM0t` -> App Integration -> App client `2ggkvcbqmfdbni8n7fe1g83sqm` -> Edit Hosted UI**:
+1. **Allowed callback URLs:** Thêm `http://localhost:3000/callback` (có thể giữ cả `http://localhost:5173/callback`).
+2. **Allowed sign-out URLs:** Thêm `http://localhost:3000/login` (có thể giữ cả `http://localhost:5173/login`).
+3. **OpenID Connect scopes:** Tick bật thêm **`aws.cognito.signin.user.admin`** (cùng với `OpenID`, `Email`, `Profile`).
