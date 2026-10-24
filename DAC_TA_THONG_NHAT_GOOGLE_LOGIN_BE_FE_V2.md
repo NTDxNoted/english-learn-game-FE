@@ -112,3 +112,121 @@ sequenceDiagram
 ~~~
 
 HTTP 200 của /auth/google chỉ xác nhận đổi code và kiểm tra tương ứng đã thành công. Nó không có nghĩa PostgreSQL đã tạo user hoặc người dùng đã được vào ứng dụng.
+
+## 5. Hợp đồng API
+
+### 5.1. POST /api/auth/google
+
+API công khai trước đăng nhập. Không gửi Authorization header.
+
+~~~http
+POST /api/auth/google
+Content-Type: application/json
+Accept: application/json
+~~~
+
+~~~json
+{
+  "code": "<authorization-code-do-Cognito-cap>",
+  "redirectUri": "http://localhost:3000/callback",
+  "codeVerifier": "abcdefghijklmnopqrstuvwxyz0123456789ABCDEFG"
+}
+~~~
+
+Verifier trong ví dụ chỉ minh họa định dạng, không được dùng làm hằng số khi chạy thật. Verifier thực phải thuộc chính authorize request đã tạo ra code.
+
+| Field | Quy tắc |
+|---|---|
+| code | Bắt buộc, không rỗng; code Cognito vừa cấp, không phải Google ID token |
+| redirectUri | Khớp chính xác authorize request, allowlist BE và callback đã đăng ký trên Cognito |
+| codeVerifier | 43–128 ký tự A–Z, a–z, 0–9, -, ., _, ~; khớp challenge S256 |
+
+state được FE kiểm tra với giao dịch đã lưu trước redirect; request BE chỉ cần ba field trên. FE không gửi email/userId/role/status để BE quyết định danh tính.
+
+Response 200 trực tiếp trên đường truyền:
+
+~~~json
+{
+  "accessToken": "<cognito-access-token>",
+  "idToken": "<cognito-id-token>",
+  "refreshToken": "<cognito-refresh-token>",
+  "expiresIn": 3600
+}
+~~~
+
+- expiresIn là số giây Cognito thực tế trả về, không hardcode khi response thiếu.
+- Response chứa token phải có Cache-Control: no-store, Pragma: no-cache.
+- BE không thêm vỏ success/data chỉ vì FE dùng ApiResponse; interceptor FE đang bọc DTO.
+- FE không yêu cầu tokenType từ BE; dùng Bearer khi gọi protected API.
+- idToken không dùng làm Bearer; V2 không cần thêm ID token decoder để kiểm tra email tại API Google.
+
+### 5.2. POST /api/auth/sync
+
+~~~http
+POST /api/auth/sync
+Authorization: Bearer <accessToken-vua-nhan>
+~~~
+
+Không cần body. Response 200:
+
+~~~json
+{
+  "id": 123,
+  "email": "learner@example.com",
+  "displayName": "Người học",
+  "role": "learner",
+  "status": "ACTIVE"
+}
+~~~
+
+FE chỉ thiết lập phiên từ response Sync ACTIVE. User mới có thể đã có trên Cognito nhưng chưa có local; /auth/google phải cho user đó tiếp tục tới Sync.
+
+Nếu Google tạo sub mới nhưng email đã thuộc tài khoản local khác, Sync trả:
+
+~~~json
+{
+  "code": "EMAIL_ALREADY_EXISTS",
+  "message": "Email đã thuộc tài khoản khác. Vui lòng đăng nhập bằng phương thức đã đăng ký."
+}
+~~~
+
+HTTP 409, không trả profile ACTIVE. FE bỏ token tạm, không vào ứng dụng. Không tự gán lại sub hoặc gộp dữ liệu chỉ vì email giống nhau.
+
+### 5.3. POST /api/auth/refresh và POST /api/auth/logout
+
+Giữ endpoint refresh, request có refreshToken và response hiện có. Chế độ dùng cho đợt tích hợp này:
+
+~~~dotenv
+AWS_COGNITO_REFRESH_MODE=sdk
+~~~
+
+Không đổi sang OAuth hoặc tự bật rotation trong đợt này. REFRESH_TOKEN_AUTH không tương thích rotation bật; một đợt triển khai rotation cần có kế hoạch BE/FE và test riêng.
+
+Logout giữ response có logoutUrl:
+
+~~~json
+{
+  "logoutUrl": "https://<cognito-domain>/logout?client_id=<client-id>&logout_uri=<encoded-sign-out-url>"
+}
+~~~
+
+FE dọn phiên rồi điều hướng trình duyệt tới logoutUrl hợp lệ do BE trả về. Logout Cognito không cam kết đăng xuất Google; chức năng hiện tại cũng không đồng nghĩa đã thu hồi toàn bộ token.
+
+### 5.4. Quy ước lỗi
+
+| HTTP | code V2 | Bên phát hiện | FE cần làm |
+|---|---|---|---|
+| 400 | VALIDATION_ERROR | BE validation/JSON | Hiện lỗi, không tự đổi lại code |
+| 400 | OAUTH_REDIRECT_URI_INVALID | BE allowlist | Báo sai cấu hình callback |
+| 400 | OAUTH_CODE_INVALID | BE đổi code | Bắt đầu login mới |
+| 401 | UNAUTHORIZED hoặc REFRESH_TOKEN_INVALID | Protected API/refresh | Xử lý phiên theo luồng hiện tại |
+| 403 | ACCOUNT_BLOCKED | BE trạng thái local | Xóa phiên, hiện thông báo bị khóa |
+| 403 | ACCOUNT_INACTIVE | BE trạng thái local | Không mở phiên |
+| 403 | COGNITO_OAUTH_FORBIDDEN | Cognito/WAF | Báo yêu cầu bị chặn; không fallback bỏ qua |
+| 409 | EMAIL_ALREADY_EXISTS | Sync/precheck/UNIQUE email | Bỏ token tạm, gợi ý phương thức đăng nhập cũ |
+| 429 | TOO_MANY_REQUESTS | Provider/BE | Chờ, không lặp request liên tục |
+| 502 | COGNITO_OAUTH_CONFIG_ERROR | Scope/client/grant không phù hợp | Hiện lỗi cấu hình, báo người phụ trách |
+| 502 | COGNITO_OAUTH_INVALID_RESPONSE | Response/token không hợp lệ | Không mở phiên |
+| 503 | COGNITO_UNAVAILABLE | Network/timeout/dịch vụ | Xử lý theo giai đoạn exchange hay Sync |
+
+Các code này là contract ứng dụng. BE phải map nguyên nhân thực tế, không đổi mọi lỗi Cognito thành 401 hoặc trả nguyên error_description/stack trace.
