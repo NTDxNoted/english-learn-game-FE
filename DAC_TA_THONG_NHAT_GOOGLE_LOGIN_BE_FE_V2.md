@@ -466,3 +466,68 @@ Nếu FE đã dùng tên biến khác, mapping rõ về cùng giá trị; không
 - Người phụ trách xác nhận trạng thái rotation/device remembering; không tự thay đổi các thiết lập này chỉ để thử.
 
 Nguồn cấu hình: [Google IdP](https://docs.aws.amazon.com/cognito/latest/developerguide/cognito-user-pools-social-idp-google.html), [authorize](https://docs.aws.amazon.com/cognito/latest/developerguide/authorization-endpoint.html), [token endpoint](https://docs.aws.amazon.com/cognito/latest/developerguide/token-endpoint.html), [refresh](https://docs.aws.amazon.com/cognito/latest/developerguide/amazon-cognito-user-pools-using-the-refresh-token.html).
+
+## 9. Checklist nghiệm thu liên thông
+
+Mỗi dòng cần ghi PASS/FAIL và bằng chứng sau khi chạy; không tick dựa trên đọc code hoặc test mock phiên bản trước.
+
+| ID | Tình huống | Kết quả cần đạt | Phụ trách |
+|---|---|---|---|
+| G01 | Yêu cầu bốn scope trên App Client thật | Không invalid_scope; token có scope đúng | AWS + FE |
+| G02 | Google user mới | Exchange 200, Sync tạo một learner ACTIVE rồi FE mới vào app | BE + FE |
+| G03 | User cũ ACTIVE | Giữ id/role/status/createdAt; không nhân đôi dữ liệu | BE |
+| G04 | User local BLOCKED nhưng provider vẫn cấp code | Không vào app, nhận lỗi trạng thái phù hợp | BE + FE |
+| G05 | User đã disable trên Cognito | Callback xử lý được lỗi dù API Google chưa được gọi | AWS + FE |
+| G06 | Email đã có tài khoản mật khẩu với sub khác | Exchange có thể 200; Sync trả 409 EMAIL_ALREADY_EXISTS, FE không commit phiên | BE + FE |
+| G07 | Hai Sync cùng sub đồng thời | Một user, xử lý INSERT 1/0 đúng, không dùng hồ sơ cũ khi đã chờ khóa | BE |
+| G08 | Hai user khác sub cùng email vượt qua precheck | UNIQUE bảo vệ, transaction lỗi rollback và handler trả 409 | BE |
+| G09 | Code sai/hết hạn/đã dùng hoặc verifier không khớp | 400 OAUTH_CODE_INVALID, không auto-refresh/replay | BE + FE |
+| G10 | state/verifier/giao dịch local thiếu hoặc sai | FE không gọi exchange và không vào app | FE |
+| G11 | Callback 3000/5173 bị trộn hoặc URL dư path | Phát hiện rõ, không bỏ allowlist để cho qua | BE + FE |
+| G12 | StrictMode/remount/double click/reload callback | Không đổi code cùng giao dịch hai lần | FE |
+| G13 | Token cũ còn trong browser | Không mang vào exchange, không ghi đè Authorization token tạm của Sync | FE |
+| G14 | Exchange timeout hoặc response thất lạc | Không tự dùng lại code, cho bắt đầu giao dịch mới | FE |
+| G15 | Sync 503/429 | Chưa authenticated; chỉ retry Sync có giới hạn | BE + FE |
+| G16 | Google token gọi PATCH tên và Sync tiếp theo | Đủ scope, quyền attribute đúng, hành vi nguồn tên được hiểu rõ | BE + AWS + FE |
+| G17 | Đăng nhập Google lại sau PATCH tên | Kiểm tra tác động mapping Google, không hứa giữ tên trái nghiệp vụ | BE + FE |
+| G18 | Refresh Google và email/password | SDK hiện tại chạy đúng theo cấu hình đã xác nhận | BE + FE |
+| G19 | Logout rồi login lại | Dọn local và redirect Cognito logout; không nhầm với logout Google | BE + FE |
+| G20 | Đăng nhập email/register/forgot/reset cũ | Không regression | BE + FE |
+| G21 | Raw DTO và lỗi JSON | Không nhầm data wrapper/tokenType/code/message | BE + FE |
+| G22 | DB lỗi/UNIQUE không phải email | Không biến mọi lỗi DB thành lỗi Cognito hoặc 409 giả | BE |
+| G23 | User bị khóa sau khi đã login | Protected API tiếp tục chặn dù token chưa hết hạn | BE |
+| G24 | Media/game sau khi login Google | User đã Sync, gọi được learning/game theo quyền hiện có | BE + FE |
+
+### Kiểm thử tự động cần cập nhật
+
+- BE: sửa AuthGoogleLoginTest để kiểm tra không gọi GetUser ở exchange.
+- BE: sửa UserSyncServiceImplTest cho user hiện có, INSERT 1, INSERT 0, precheck email và giữ tên/status.
+- BE: test handler UNIQUE email/code mới và rollback trong database test riêng khi kiểm thử race.
+- FE: test state/PKCE, chống exchange trùng, explicit-token Sync, AuthProvider gating và lỗi 409 tại Sync.
+- Giữ regression tests cho login/refresh/hồ sơ/blocked/CORS.
+- Không chạy full context test kết nối database thật chỉ để xác nhận compile.
+
+152 test mock đã báo trước thuộc bản BE trước V2. Cần cập nhật và chạy lại các test bị ảnh hưởng; con số đó không chứng minh thay đổi V2 hoặc cấu hình AWS đã hoạt động.
+
+## 10. Trình tự thực hiện để hai bên không làm lệch nhau
+
+1. Hai bên đọc mục 1–5 và thống nhất local port 3000, scope, response và thời điểm commit phiên.
+2. Người quản lý Cognito bật scope còn thiếu, kiểm tra callback/mapping và cung cấp xác nhận cấu hình không chứa secret.
+3. BE sửa API Google và Sync theo mục 6; cập nhật lỗi EMAIL_ALREADY_EXISTS, chạy test liên quan.
+4. FE giữ cấu trúc hiện có, thêm PKCE/state và bảo đảm chỉ commit sau Sync; giữ Vite Proxy.
+5. Kiểm thử Google user mới và email trùng trước, vì contract 409 đã chuyển sang Sync.
+6. Kiểm thử BLOCKED, refresh, PATCH tên, logout và login email cũ.
+7. Ghi kết quả G01–G24, chỉ coi chức năng hoàn thành khi cấu hình AWS và hai phía cùng qua.
+8. Khi deploy, cấu hình domain HTTPS/callback/origin production riêng; Vite Proxy dev không tự xuất hiện trong bản build production.
+
+## 11. Quy tắc không được hiểu nhầm
+
+- Cognito có hỗ trợ Google; scope thiếu là cấu hình chưa đồng bộ, không chứng minh GetUser chỉ dành cho tài khoản native.
+- Bốn scope là quyết định V1 để hỗ trợ cả đọc và cập nhật hồ sơ; phải bật thực tế trước khi dùng.
+- HTTP 200 exchange chưa phải login ứng dụng thành công; Sync ACTIVE mới là điểm commit.
+- Kiểm tra email trước INSERT không loại bỏ race; UNIQUE/rollback vẫn giữ.
+- Một lần đọc hồ sơ là mục tiêu thông thường, không loại bỏ lần đọc mới cần thiết sau chờ khóa.
+- Không gộp tài khoản bằng cách đổi cognito_sub theo email.
+- Không tự bỏ PKCE/state để “test cho qua”.
+- Không tự đổi refresh, bật rotation, bỏ Vite Proxy hoặc thêm bảng khi chưa có nhu cầu trong đặc tả này.
+- Số file FE không quan trọng bằng hợp đồng, trạng thái và kết quả kiểm thử.
