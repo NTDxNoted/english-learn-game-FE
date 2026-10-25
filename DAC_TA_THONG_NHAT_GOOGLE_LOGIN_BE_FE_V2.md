@@ -427,3 +427,42 @@ Người giữ tài khoản AWS cần vào **AWS Cognito -> User Pool `us-east-1
 | [env example](D:/AWS/english-learn-game-FE-main/.env.example) | Đồng nhất các biến public bên dưới |
 
 Member FE có thể tách helper nếu giúp kiểm thử, nhưng số lượng/tên file không phải tiêu chí nghiệm thu. Hành vi và contract mới là tiêu chí.
+
+## 8. Cấu hình mẫu dùng chung
+
+### Backend environment
+
+~~~dotenv
+AWS_COGNITO_CLIENT_ID=<cognito-app-client-id>
+AWS_COGNITO_DOMAIN=https://<prefix>.auth.us-east-1.amazoncognito.com
+AWS_COGNITO_ALLOWED_REDIRECT_URIS=http://localhost:3000/callback
+AWS_COGNITO_REFRESH_MODE=sdk
+FRONTEND_URL=http://localhost:3000
+CORS_ALLOWED_ORIGINS=http://localhost:3000,http://localhost:5173
+~~~
+
+Đưa biến vào process/IntelliJ/systemd hoặc loader đang dùng. Spring Boot không mặc định tự đọc .env như Vite. Không đổi issuer URI User Pool thành Hosted UI domain.
+
+### Frontend environment
+
+~~~dotenv
+VITE_API_BASE_URL=/api
+VITE_BACKEND_URL=http://localhost:8080
+VITE_COGNITO_CLIENT_ID=<cung-client-id-voi-BE>
+VITE_COGNITO_DOMAIN=https://<prefix>.auth.us-east-1.amazoncognito.com
+VITE_COGNITO_REDIRECT_URI=http://localhost:3000/callback
+VITE_COGNITO_SCOPES="openid email profile aws.cognito.signin.user.admin"
+~~~
+
+Nếu FE đã dùng tên biến khác, mapping rõ về cùng giá trị; không tự tạo hai nguồn cấu hình cạnh tranh. VITE_* là public trong bundle, không chứa Google/Cognito Client Secret hoặc AWS credential.
+
+### AWS/Google
+
+- Cognito: đúng App Client không secret theo phạm vi V1; bật Google và Authorization code grant.
+- Cognito: bật bốn scope trước khi FE yêu cầu chúng; kiểm tra thuộc tính email/name đọc/ghi và mapping phù hợp.
+- Cognito callback: http://localhost:3000/callback.
+- Cognito sign-out: http://localhost:3000/login.
+- Google callback: https://<cognito-domain>/oauth2/idpresponse.
+- Người phụ trách xác nhận trạng thái rotation/device remembering; không tự thay đổi các thiết lập này chỉ để thử.
+
+Nguồn cấu hình: [Google IdP](https://docs.aws.amazon.com/cognito/latest/developerguide/cognito-user-pools-social-idp-google.html), [authorize](https://docs.aws.amazon.com/cognito/latest/developerguide/authorization-endpoint.html), [token endpoint](https://docs.aws.amazon.com/cognito/latest/developerguide/token-endpoint.html), [refresh](https://docs.aws.amazon.com/cognito/latest/developerguide/amazon-cognito-user-pools-using-the-refresh-token.html).
