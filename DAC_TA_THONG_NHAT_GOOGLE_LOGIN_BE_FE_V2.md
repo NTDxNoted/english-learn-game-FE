@@ -371,3 +371,59 @@ Người giữ tài khoản AWS cần vào **AWS Cognito -> User Pool `us-east-1
 1. **Allowed callback URLs:** Thêm `http://localhost:3000/callback` (có thể giữ cả `http://localhost:5173/callback`).
 2. **Allowed sign-out URLs:** Thêm `http://localhost:3000/login` (có thể giữ cả `http://localhost:5173/login`).
 3. **OpenID Connect scopes:** Tick bật thêm **`aws.cognito.signin.user.admin`** (cùng với `OpenID`, `Email`, `Profile`).
+
+## 7. Phần việc Frontend
+
+### 7.1. Khởi tạo Google login
+
+1. Tạo state và verifier ngẫu nhiên bằng Web Crypto.
+2. Tính challenge BASE64URL(SHA256(verifier)), bỏ padding, dùng S256.
+3. Lưu giao dịch gồm state/verifier/redirectUri/createdAt/returnTo trong sessionStorage theo tab.
+4. Điều hướng trình duyệt tới Cognito authorize với identity_provider=Google và đủ bốn scope.
+5. Không đưa verifier vào URL, không lưu secret trong biến VITE_*.
+6. Không dùng codeVerifier ngẫu nhiên do Swagger tự điền để đổi một code thuộc giao dịch khác.
+
+### 7.2. Callback và chống xử lý trùng
+
+- Có thể dùng /callback render LoginPage/LoginForm đang có; không bắt buộc tạo GoogleCallbackPage mới.
+- Đối chiếu state, giao dịch, verifier, redirectUri và thời hạn local trước khi gọi BE.
+- Chụp giá trị cần dùng rồi xóa code/state khỏi URL bằng replace; không log URL chứa code.
+- Một giao dịch chỉ được POST đổi code một lần, kể cả StrictMode/remount/double click.
+- processedOAuthRef có thể là một phần giải pháp; phải test remount và nhiều giao dịch, không mặc định rằng một ref xử lý mọi vòng đời.
+- Không tự retry/replay exchange khi 400/401/timeout; code có thể đã được dùng. Bắt đầu giao dịch mới khi không còn xác định được kết quả exchange.
+- Provider có thể trả error trước khi BE nhận request; callback phải hiển thị lỗi an toàn và kết thúc loading.
+
+### 7.3. Token tạm, Sync và commit phiên
+
+1. Exchange 200: chỉ giữ token trong bộ nhớ luồng login.
+2. Gọi Sync với đúng accessToken tạm, không bị interceptor thay bằng token cũ.
+3. Sync này không tự refresh/replay; timeout/retry có giới hạn chỉ áp dụng riêng Sync khi còn token tạm hợp lệ.
+4. Chỉ khi Sync trả ACTIVE mới ghi token qua helper hiện có và thiết lập AuthContext.
+5. Sync 409/403/401: xóa dữ liệu tạm, không vào protected route.
+6. Sync 429/503: chưa authenticated; có thể cho thử lại Sync với giới hạn, không đổi code lại.
+7. Callback phải render được, không bị AuthProvider boot GetMe bằng phiên cũ rồi che giao diện xử lý.
+8. Logout/đổi user trong khi request cũ còn chạy phải có cơ chế revision để response cũ không khôi phục phiên.
+
+### 7.4. Interceptor, proxy và cấu trúc file
+
+- Thêm /auth/google vào publicAuthPaths; xóa Authorization khỏi request này.
+- Không refresh khi /auth/google trả lỗi.
+- Giữ VITE_API_BASE_URL=/api, VITE_BACKEND_URL=http://localhost:8080 và proxy hiện có.
+- Type FE phải khớp DTO BE: tokenType không bắt buộc; logout response có logoutUrl.
+- Giữ một nguồn auth types; không tạo interface trùng ở nhiều thư mục.
+
+| File đang có | Việc cần làm |
+|---|---|
+| [authApi.ts](D:/AWS/english-learn-game-FE-main/src/features/auth/api/authApi.ts) | Google exchange ba field, explicit-token Sync, đúng kiểu response logout |
+| [LoginForm.tsx](D:/AWS/english-learn-game-FE-main/src/features/auth/components/LoginForm.tsx) | PKCE/state/callback nếu đây là nơi nhóm đang xử lý; giữ login email ổn định |
+| [LoginPage.tsx](D:/AWS/english-learn-game-FE-main/src/features/auth/pages/LoginPage.tsx) | Loading/error cho Google, không điều hướng sớm |
+| [router.tsx](D:/AWS/english-learn-game-FE-main/src/app/router.tsx) | Public /callback, không bọc ProtectedRoute/AdminGuard |
+| [apiClient.ts](D:/AWS/english-learn-game-FE-main/src/lib/apiClient.ts) | Public Google và tùy chọn Sync token tạm không auto-refresh |
+| [AuthProvider.tsx](D:/AWS/english-learn-game-FE-main/src/features/auth/context/AuthProvider.tsx) | Callback boot/gating, commit phiên sau Sync ACTIVE |
+| [tokenStorage.ts](D:/AWS/english-learn-game-FE-main/src/lib/tokenStorage.ts) | Giữ revision và dọn phiên, không lưu token tạm trước Sync |
+| [auth.types.ts](D:/AWS/english-learn-game-FE-main/src/features/auth/types/auth.types.ts) | GoogleAuthRequest, AuthTokens và LogoutResponse khớp wire DTO |
+| [normalizeApiError.ts](D:/AWS/english-learn-game-FE-main/src/lib/normalizeApiError.ts) | Đọc code/message, nhận EMAIL_ALREADY_EXISTS và tương thích HTTP 409 khi rollout |
+| [vite.config.ts](D:/AWS/english-learn-game-FE-main/vite.config.ts) | Giữ proxy và port 3000 đã chốt |
+| [env example](D:/AWS/english-learn-game-FE-main/.env.example) | Đồng nhất các biến public bên dưới |
+
+Member FE có thể tách helper nếu giúp kiểm thử, nhưng số lượng/tên file không phải tiêu chí nghiệm thu. Hành vi và contract mới là tiêu chí.
