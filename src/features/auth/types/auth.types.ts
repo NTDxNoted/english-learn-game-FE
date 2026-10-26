@@ -15,7 +15,7 @@ export interface AuthTokens {
   accessToken: string;
   refreshToken?: string;
   idToken?: string;
-  tokenType: string;
+  tokenType?: string;
   expiresIn: number;
 }
 
