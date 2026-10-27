@@ -19,6 +19,10 @@ export interface AuthTokens {
   expiresIn: number;
 }
 
+export interface LogoutResponse {
+  logoutUrl?: string;
+}
+
 // Request & Response payload cho AUTH-01
 export interface RegisterRequest {
   email: string;
