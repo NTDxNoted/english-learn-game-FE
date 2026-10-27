@@ -2,7 +2,7 @@
   AxiosError,
   type InternalAxiosRequestConfig,
 } from 'axios';
-import { ApiError, type ApiErrorResponse, type ApiResponse } from '../types/api.types';
+import { ApiError, type ApiErrorResponse, type ApiResponse, type ApiFieldError } from '../types/api.types';
 import type { AuthTokens } from '../types/auth.types';
 import { tokenStorage } from './tokenStorage';
 
@@ -50,10 +50,23 @@ interface CustomRequestConfig extends InternalAxiosRequestConfig {
   _retry?: boolean;
 }
 
-// Response Interceptor: Bóc data và tự động làm mới token Cognito khi hết hạn
+// Response Interceptor: Bóc data và tự động chuẩn hóa DTO từ Spring Boot backend
 apiClient.interceptors.response.use(
   (response) => {
-    return response.data;
+    const raw = response.data;
+    // Nếu response đã có cấu trúc bọc { success, data }
+    if (raw && typeof raw === 'object' && 'data' in raw && 'success' in raw) {
+      return raw;
+    }
+    // Nếu Spring Boot trả về DTO trực tiếp (List, Object, Void)
+    return {
+      success: true,
+      data: raw,
+      message: (raw && typeof raw === 'object' && 'message' in raw && typeof (raw as { message?: unknown }).message === 'string')
+        ? (raw as { message: string }).message
+        : 'Thành công',
+      timestamp: new Date().toISOString(),
+    };
   },
   async (error: AxiosError<ApiErrorResponse>) => {
     const originalRequest = error.config as CustomRequestConfig | undefined;
@@ -162,19 +175,27 @@ apiClient.interceptors.response.use(
       }
     }
 
-    if (errorData && typeof errorData === 'object' && 'errorCode' in errorData) {
-      return Promise.reject(new ApiError(errorData, status ?? 500));
-    }
+    const serverMessage =
+      (errorData && typeof errorData === 'object' && 'message' in errorData && typeof (errorData as { message?: unknown }).message === 'string')
+        ? (errorData as { message: string }).message
+        : (error.message || 'Lỗi kết nối tới máy chủ');
 
-    const fallbackError: Partial<ApiErrorResponse> = {
+    const serverErrorCode =
+      (errorData && typeof errorData === 'object' && 'errorCode' in errorData && typeof (errorData as { errorCode?: unknown }).errorCode === 'string')
+        ? (errorData as { errorCode: string }).errorCode
+        : (status === 400 ? 'BAD_REQUEST' : status === 401 ? 'UNAUTHORIZED' : status === 403 ? 'FORBIDDEN' : status === 404 ? 'NOT_FOUND' : 'SERVER_ERROR');
+
+    const normalizedError: Partial<ApiErrorResponse> = {
       success: false,
-      message: error.message || 'Lỗi kết nối tới máy chủ',
-      errorCode: status === 403 ? 'FORBIDDEN' : 'NETWORK_ERROR',
-      errors: [],
+      message: serverMessage,
+      errorCode: serverErrorCode,
+      errors: (errorData && typeof errorData === 'object' && 'errors' in errorData && Array.isArray((errorData as { errors?: unknown }).errors))
+        ? (errorData as { errors: ApiFieldError[] }).errors
+        : [],
       timestamp: new Date().toISOString(),
     };
 
-    return Promise.reject(new ApiError(fallbackError, status ?? 500));
+    return Promise.reject(new ApiError(normalizedError, status ?? 500));
   },
 );
 
