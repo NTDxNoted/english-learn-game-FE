@@ -37,13 +37,18 @@ export const apiClient = axios.create({
 // Request Interceptor: Gắn JWT access token của AWS Cognito vào header
 apiClient.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
-    (config as CustomRequestConfig)._sessionRevision ??= tokenStorage.getRevision();
+    const customConfig = config as CustomRequestConfig;
+    customConfig._sessionRevision ??= tokenStorage.getRevision();
     if (typeof FormData !== 'undefined' && config.data instanceof FormData) config.headers.delete('Content-Type');
-    const token = tokenStorage.getAccessToken();
     if (isPublicAuthRequest(config.url)) {
       config.headers.delete('Authorization');
-    } else if (token && config.headers) {
-      config.headers.Authorization = `Bearer ${token}`;
+    } else if (customConfig._explicitAccessToken && config.headers) {
+      config.headers.Authorization = `Bearer ${customConfig._explicitAccessToken}`;
+    } else {
+      const token = tokenStorage.getAccessToken();
+      if (token && config.headers) {
+        config.headers.Authorization = `Bearer ${token}`;
+      }
     }
     return config;
   },
