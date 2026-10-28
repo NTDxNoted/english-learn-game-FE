@@ -98,6 +98,7 @@ apiClient.interceptors.response.use(
     const originalRequest = error.config as CustomRequestConfig | undefined;
     const normalized = normalizeApiError(error);
     const publicRequest = isPublicAuthRequest(originalRequest?.url);
+    const skipRefresh = Boolean(originalRequest?._skipAuthRefresh);
     if (originalRequest?._sessionRevision !== undefined && originalRequest._sessionRevision !== tokenStorage.getRevision()) {
       return Promise.reject(normalized);
     }
@@ -105,7 +106,7 @@ apiClient.interceptors.response.use(
       endSession(true);
       return Promise.reject(normalized);
     }
-    if (originalRequest && !publicRequest && normalized.statusCode === 401 && !originalRequest._retry) {
+    if (originalRequest && !publicRequest && !skipRefresh && normalized.statusCode === 401 && !originalRequest._retry) {
       const refreshToken = tokenStorage.getRefreshToken();
       if (!refreshToken) {
         endSession();
@@ -144,7 +145,7 @@ apiClient.interceptors.response.use(
         return Promise.reject(refreshError);
       }
     }
-    if (!publicRequest && normalized.statusCode === 401) endSession();
+    if (!publicRequest && !skipRefresh && normalized.statusCode === 401) endSession();
     return Promise.reject(normalized);
   },
 );
