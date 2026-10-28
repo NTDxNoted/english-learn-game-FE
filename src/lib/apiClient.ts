@@ -59,9 +59,16 @@ const endSession = (blocked = false) => {
   }
 };
 
+export interface RequestConfigWithAuth extends AxiosRequestConfig {
+  _explicitAccessToken?: string;
+  _skipAuthRefresh?: boolean;
+}
+
 interface CustomRequestConfig extends InternalAxiosRequestConfig {
   _retry?: boolean;
   _sessionRevision?: number;
+  _explicitAccessToken?: string;
+  _skipAuthRefresh?: boolean;
 }
 
 // Response Interceptor: Bóc data và tự động chuẩn hóa DTO từ Spring Boot backend
@@ -138,14 +145,14 @@ apiClient.interceptors.response.use(
 );
 
 export const http = {
-  get: <T>(url: string, params?: Record<string, unknown>, options?: AxiosRequestConfig): Promise<ApiResponse<T>> =>
+  get: <T>(url: string, params?: Record<string, unknown>, options?: RequestConfigWithAuth): Promise<ApiResponse<T>> =>
     apiClient.get(url, { ...options, params }) as unknown as Promise<ApiResponse<T>>,
-  post: <T, B = unknown>(url: string, data?: B, options?: AxiosRequestConfig): Promise<ApiResponse<T>> =>
+  post: <T, B = unknown>(url: string, data?: B, options?: RequestConfigWithAuth): Promise<ApiResponse<T>> =>
     apiClient.post(url, data, options) as unknown as Promise<ApiResponse<T>>,
-  put: <T, B = unknown>(url: string, data?: B, options?: AxiosRequestConfig): Promise<ApiResponse<T>> =>
+  put: <T, B = unknown>(url: string, data?: B, options?: RequestConfigWithAuth): Promise<ApiResponse<T>> =>
     apiClient.put(url, data, options) as unknown as Promise<ApiResponse<T>>,
-  patch: <T, B = unknown>(url: string, data?: B, options?: AxiosRequestConfig): Promise<ApiResponse<T>> =>
+  patch: <T, B = unknown>(url: string, data?: B, options?: RequestConfigWithAuth): Promise<ApiResponse<T>> =>
     apiClient.patch(url, data, options) as unknown as Promise<ApiResponse<T>>,
-  delete: <T = void>(url: string, options?: AxiosRequestConfig): Promise<ApiResponse<T>> =>
+  delete: <T = void>(url: string, options?: RequestConfigWithAuth): Promise<ApiResponse<T>> =>
     apiClient.delete(url, options) as unknown as Promise<ApiResponse<T>>,
 };
