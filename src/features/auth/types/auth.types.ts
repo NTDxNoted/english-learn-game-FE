@@ -51,10 +51,13 @@ export interface LoginRequest {
   password: string;
 }
 
-export interface GoogleCodeExchangeRequest {
+export interface GoogleAuthRequest {
   code: string;
   redirectUri: string;
+  codeVerifier: string;
 }
+
+export type GoogleCodeExchangeRequest = GoogleAuthRequest;
 
 export interface RefreshTokenRequest {
   refreshToken: string;
