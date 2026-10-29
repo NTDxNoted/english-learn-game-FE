@@ -17,6 +17,7 @@ import type {
 
 const DEFAULT_COGNITO_DOMAIN = 'https://us-east-1i2fjaym0t.auth.us-east-1.amazoncognito.com';
 const DEFAULT_COGNITO_CLIENT_ID = '2ggkvcbqmfdbni8n7fe1g83sqm';
+const DEFAULT_COGNITO_SCOPES = 'openid email profile aws.cognito.signin.user.admin';
 
 const getCognitoDomain = (): string =>
   ((import.meta.env.VITE_COGNITO_DOMAIN as string | undefined) || DEFAULT_COGNITO_DOMAIN).replace(/\/+$/, '');
@@ -31,6 +32,14 @@ export const getCognitoRedirectUri = (): string => {
     return `${window.location.origin}/callback`;
   }
   return 'http://localhost:5173/callback';
+};
+
+export const getCognitoScopes = (): string => {
+  const configured = (import.meta.env.VITE_COGNITO_SCOPES as string | undefined)
+    ?.trim()
+    .replace(/^["']|["']$/g, '')
+    .trim();
+  return configured || DEFAULT_COGNITO_SCOPES;
 };
 
 interface CognitoOAuthTokenResponse {
