@@ -59,7 +59,11 @@ let refreshInFlight: Promise<string> | null = null;
 
 const endSession = (blocked = false) => {
   tokenStorage.notifyUnauthorized();
-  if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/login')) {
+  if (
+    typeof window !== 'undefined' &&
+    !window.location.pathname.startsWith('/login') &&
+    !window.location.pathname.startsWith('/callback')
+  ) {
     window.location.href = blocked ? '/login?accountBlocked=true' : '/login?sessionExpired=true';
   }
 };
