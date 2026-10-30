@@ -81,6 +81,22 @@ export const generateRandomBase64Url = (byteLength = 32): string => {
   return toBase64Url(bytes);
 };
 
+
+export const computeCodeChallengeS256 = async (codeVerifier: string): Promise<string> => {
+  if (typeof globalThis.crypto?.subtle?.digest !== 'function') {
+    throw new ApiError(
+      {
+        message: 'Trình duyệt không hỗ trợ mã hóa SHA-256 cho PKCE.',
+        errorCode: 'PKCE_UNSUPPORTED',
+      },
+      400,
+    );
+  }
+  const data = new TextEncoder().encode(codeVerifier);
+  const digest = await globalThis.crypto.subtle.digest('SHA-256', data);
+  return toBase64Url(new Uint8Array(digest));
+};
+
 interface CognitoOAuthTokenResponse {
   access_token?: string;
   refresh_token?: string;
