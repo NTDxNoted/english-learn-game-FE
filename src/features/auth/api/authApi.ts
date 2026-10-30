@@ -57,6 +57,30 @@ export const sanitizeReturnTo = (path?: string | null): string | undefined => {
   return trimmed;
 };
 
+
+const toBase64Url = (bytes: Uint8Array): string => {
+  let binary = '';
+  for (let i = 0; i < bytes.byteLength; i++) {
+    binary += String.fromCharCode(bytes[i]);
+  }
+  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+};
+
+export const generateRandomBase64Url = (byteLength = 32): string => {
+  if (typeof globalThis.crypto?.getRandomValues !== 'function') {
+    throw new ApiError(
+      {
+        message: 'Trình duyệt không hỗ trợ tạo mã bảo mật PKCE (Web Crypto API).',
+        errorCode: 'PKCE_UNSUPPORTED',
+      },
+      400,
+    );
+  }
+  const bytes = new Uint8Array(byteLength);
+  globalThis.crypto.getRandomValues(bytes);
+  return toBase64Url(bytes);
+};
+
 interface CognitoOAuthTokenResponse {
   access_token?: string;
   refresh_token?: string;
