@@ -42,6 +42,21 @@ export const getCognitoScopes = (): string => {
   return configured || DEFAULT_COGNITO_SCOPES;
 };
 
+export const sanitizeReturnTo = (path?: string | null): string | undefined => {
+  if (!path) return undefined;
+  const trimmed = path.trim();
+  if (
+    !trimmed.startsWith('/') ||
+    trimmed.startsWith('//') ||
+    trimmed.includes('\\') ||
+    trimmed.startsWith('/login') ||
+    trimmed.startsWith('/callback')
+  ) {
+    return undefined;
+  }
+  return trimmed;
+};
+
 interface CognitoOAuthTokenResponse {
   access_token?: string;
   refresh_token?: string;
