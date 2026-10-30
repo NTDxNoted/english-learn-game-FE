@@ -31,7 +31,7 @@ export const getCognitoRedirectUri = (): string => {
   if (typeof window !== 'undefined' && window.location?.origin) {
     return `${window.location.origin}/callback`;
   }
-  return 'http://localhost:5173/callback';
+  return 'http://localhost:3000/callback';
 };
 
 export const getCognitoScopes = (): string => {
