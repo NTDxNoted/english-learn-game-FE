@@ -19,6 +19,18 @@ const DEFAULT_COGNITO_DOMAIN = 'https://us-east-1i2fjaym0t.auth.us-east-1.amazon
 const DEFAULT_COGNITO_CLIENT_ID = '2ggkvcbqmfdbni8n7fe1g83sqm';
 const DEFAULT_COGNITO_SCOPES = 'openid email profile aws.cognito.signin.user.admin';
 
+export const GOOGLE_OAUTH_TX_STORAGE_KEY = 'signly_google_oauth_tx';
+export const GOOGLE_OAUTH_TX_MAX_AGE_MS = 15 * 60 * 1000;
+const PKCE_VERIFIER_PATTERN = /^[A-Za-z0-9._~-]{43,128}$/;
+
+export interface GoogleOAuthTransaction {
+  state: string;
+  codeVerifier: string;
+  redirectUri: string;
+  createdAt: number;
+  returnTo?: string;
+}
+
 const getCognitoDomain = (): string =>
   ((import.meta.env.VITE_COGNITO_DOMAIN as string | undefined) || DEFAULT_COGNITO_DOMAIN).replace(/\/+$/, '');
 
