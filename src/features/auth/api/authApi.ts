@@ -123,6 +123,43 @@ export const saveGoogleOAuthTransaction = (tx: GoogleOAuthTransaction): void => 
   sessionStorage.setItem(GOOGLE_OAUTH_TX_STORAGE_KEY, JSON.stringify(tx));
 };
 
+
+export const readGoogleOAuthTransaction = (): GoogleOAuthTransaction | null => {
+  try {
+    if (typeof sessionStorage === 'undefined') return null;
+    const raw = sessionStorage.getItem(GOOGLE_OAUTH_TX_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Partial<GoogleOAuthTransaction>;
+    if (
+      typeof parsed?.state !== 'string' ||
+      typeof parsed?.codeVerifier !== 'string' ||
+      typeof parsed?.redirectUri !== 'string' ||
+      typeof parsed?.createdAt !== 'number'
+    ) {
+      return null;
+    }
+    return {
+      state: parsed.state,
+      codeVerifier: parsed.codeVerifier,
+      redirectUri: parsed.redirectUri,
+      createdAt: parsed.createdAt,
+      returnTo: sanitizeReturnTo(parsed.returnTo),
+    };
+  } catch {
+    return null;
+  }
+};
+
+export const clearGoogleOAuthTransaction = (): void => {
+  try {
+    if (typeof sessionStorage !== 'undefined') {
+      sessionStorage.removeItem(GOOGLE_OAUTH_TX_STORAGE_KEY);
+    }
+  } catch {
+    // Ignore storage removal errors
+  }
+};
+
 interface CognitoOAuthTokenResponse {
   access_token?: string;
   refresh_token?: string;
