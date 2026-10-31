@@ -109,6 +109,20 @@ export const computeCodeChallengeS256 = async (codeVerifier: string): Promise<st
   return toBase64Url(new Uint8Array(digest));
 };
 
+
+export const saveGoogleOAuthTransaction = (tx: GoogleOAuthTransaction): void => {
+  if (typeof sessionStorage === 'undefined') {
+    throw new ApiError(
+      {
+        message: 'Không thể lưu phiên giao dịch Google (sessionStorage bị tắt).',
+        errorCode: 'STORAGE_UNAVAILABLE',
+      },
+      400,
+    );
+  }
+  sessionStorage.setItem(GOOGLE_OAUTH_TX_STORAGE_KEY, JSON.stringify(tx));
+};
+
 interface CognitoOAuthTokenResponse {
   access_token?: string;
   refresh_token?: string;
