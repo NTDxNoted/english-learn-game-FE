@@ -1,4 +1,4 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
@@ -17,6 +17,7 @@ import { authApi } from '../api/authApi';
 import { useAuth } from '../hooks/useAuth';
 import { useToast } from '../../../app/providers/useToast';
 import { ApiError } from '../../../types/api.types';
+import { tokenStorage } from '../../../lib/tokenStorage';
 import type { UserProfile } from '../types/auth.types';
 
 export const LoginForm: React.FC = () => {
@@ -64,22 +65,24 @@ export const LoginForm: React.FC = () => {
 
       const tokens = response.data;
 
-      // 2. LƯU CHỈ accessToken và refreshToken VÀO localStorage QUA tokenStorage
-      // TUYỆT ĐỐI KHÔNG LƯU idToken (theo chuẩn bảo mật Signly AWS Cognito)
-      // 3. Gọi GET /api/v1/users/me để lấy hồ sơ và xác định vai trò
+      // 2. Lưu token vào localStorage để apiClient tự động đính kèm Authorization header
+      tokenStorage.setTokens({
+        accessToken: tokens.accessToken,
+        refreshToken: tokens.refreshToken,
+      });
+
+      // 3. Tự động đồng bộ tài khoản từ Cognito vào bảng users (PostgreSQL) qua /api/auth/sync
       let userProfile: UserProfile | undefined;
       try {
-        const meRes = await authApi.getMe();
-        userProfile = meRes.data;
-      } catch (meErr) {
-        // Trường hợp người dùng mới từ Cognito chưa có record trong bảng users
-        if (meErr instanceof ApiError && meErr.errorCode === 'USER_NOT_SYNCED') {
-          try {
-            const syncRes = await authApi.syncUser();
-            userProfile = syncRes.data;
-          } catch {
-            // Giữ undefined nếu đồng bộ gặp sự cố tạm thời
-          }
+        const syncRes = await authApi.syncUser();
+        userProfile = syncRes.data;
+      } catch (syncErr) {
+        console.warn('SyncUser gặp lỗi, thử gọi getMe():', syncErr);
+        try {
+          const meRes = await authApi.getMe();
+          userProfile = meRes.data;
+        } catch (meErr) {
+          console.warn('Không thể lấy thông tin profile người dùng:', meErr);
         }
       }
 

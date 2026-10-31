@@ -21,6 +21,7 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess }) => {
   const {
     register,
     handleSubmit,
+
     setError,
     getValues,
     formState: { errors, isSubmitting },
@@ -46,11 +47,16 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess }) => {
       onSuccess(data.email.trim());
     } catch (err) {
       if (err instanceof ApiError) {
-        if (err.errorCode === 'EMAIL_ALREADY_EXISTS') {
+        const isAlreadyExists =
+          err.errorCode === 'EMAIL_ALREADY_EXISTS' ||
+          err.message?.toLowerCase().includes('already exists') ||
+          err.message?.toLowerCase().includes('user already exists');
+
+        if (isAlreadyExists) {
           setEmailExists(true);
           setError('email', {
             type: 'server',
-            message: 'Email đã được sử dụng',
+            message: 'Email này đã được đăng ký trên hệ thống',
           });
           return;
         }
