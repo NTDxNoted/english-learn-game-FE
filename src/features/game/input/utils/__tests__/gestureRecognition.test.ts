@@ -1,4 +1,4 @@
-﻿import { describe, it, expect } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import {
   palmWidth,
   pinchRatio,
@@ -7,6 +7,7 @@ import {
   isFistClosed,
   isFistOpen,
   toScreenPoint,
+  nearestRectIndex,
   type Point,
 } from '../gestureRecognition';
 
@@ -98,5 +99,15 @@ describe('Gesture Recognition Math & Logic', () => {
     const screen = toScreenPoint(point, 1000, 500);
     expect(screen.x).toBe(800); // (1 - 0.2) * 1000
     expect(screen.y).toBe(150); // 0.3 * 500
+  });
+
+  it('nearestRectIndex finds closest rectangle within padding', () => {
+    const rects = [
+      { left: 10, top: 10, right: 50, bottom: 50 },
+      { left: 100, top: 10, right: 140, bottom: 50 },
+    ];
+    expect(nearestRectIndex(rects, 25, 25, 10)).toBe(0);
+    expect(nearestRectIndex(rects, 95, 25, 10)).toBe(1);
+    expect(nearestRectIndex(rects, 200, 200, 20)).toBe(-1);
   });
 });

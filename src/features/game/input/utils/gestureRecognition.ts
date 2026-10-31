@@ -1,4 +1,4 @@
-﻿export interface Point {
+export interface Point {
   x: number;
   y: number;
 }
@@ -162,6 +162,26 @@ export function nearestRectIndex(rects: (DOMRect | { left: number; top: number; 
     }
   });
   return bestIndex;
+}
+
+export function nearestControl(selector: string, x: number, y: number, padding: number): HTMLElement | null {
+  if (typeof document === 'undefined') return null;
+  const items = Array.from(document.querySelectorAll<HTMLElement>(selector));
+  if (!items.length) return null;
+  const index = nearestRectIndex(
+    items.map((item) => item.getBoundingClientRect()),
+    x,
+    y,
+    padding,
+  );
+  return index < 0 ? null : items[index];
+}
+
+export function slotAt(x: number, y: number): HTMLElement | null {
+  if (typeof document === 'undefined') return null;
+  const exact = document.elementFromPoint(x, y)?.closest<HTMLElement>('.game-slot');
+  if (exact) return exact;
+  return nearestControl('.game-slot:not(.filled)', x, y, 36);
 }
 
 function tipReach(landmarks: Point[], tip: number): number {

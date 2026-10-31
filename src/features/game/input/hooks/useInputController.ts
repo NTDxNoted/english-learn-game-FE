@@ -1,10 +1,16 @@
-﻿import { useState, useEffect, useRef, useCallback } from 'react';
-import type { InputMode, CursorPosition, InputControllerEvents } from '../controllers/InputController';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import type {
+  InputMode,
+  CursorPosition,
+  InputControllerEvents,
+  TileDropEvent,
+} from '../controllers/InputController';
 import { GestureInputController } from '../controllers/GestureInputController';
 import { MouseInputController } from '../controllers/MouseInputController';
 import { useGameConfig } from '../../hooks/useGameConfig';
 
 interface UseInputControllerOptions {
+  onTileDrop?: (drop: TileDropEvent) => void;
   onTileGrab?: (cursor: CursorPosition) => void;
   onTileRelease?: (cursor: CursorPosition) => void;
   onCursorMove?: (cursor: CursorPosition) => void;
@@ -36,6 +42,7 @@ export const useInputController = (options: UseInputControllerOptions = {}) => {
       mouseControllerRef.current = new MouseInputController();
     }
     mouseControllerRef.current.setEvents({
+      onTileDrop: (drop) => optionsRef.current.onTileDrop?.(drop),
       onCursorMove: (c) => optionsRef.current.onCursorMove?.(c),
       onTileGrab: (c) => optionsRef.current.onTileGrab?.(c),
       onTileRelease: (c) => optionsRef.current.onTileRelease?.(c),
@@ -65,6 +72,7 @@ export const useInputController = (options: UseInputControllerOptions = {}) => {
           }
 
           const events: InputControllerEvents = {
+            onTileDrop: (drop) => optionsRef.current.onTileDrop?.(drop),
             onCursorMove: (c) => optionsRef.current.onCursorMove?.(c),
             onTileGrab: (c) => optionsRef.current.onTileGrab?.(c),
             onTileRelease: (c) => optionsRef.current.onTileRelease?.(c),
