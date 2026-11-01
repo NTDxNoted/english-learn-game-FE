@@ -160,6 +160,22 @@ export const clearGoogleOAuthTransaction = (): void => {
   }
 };
 
+
+export interface GoogleLoginFlowResult {
+  tokens: AuthTokens;
+  profile: UserProfile;
+  returnTo?: string;
+}
+
+const inFlightGoogleFlows = new Map<string, Promise<GoogleLoginFlowResult>>();
+const completedGoogleFlows = new Map<string, GoogleLoginFlowResult>();
+
+export const resetGoogleOAuthCoordinator = (): void => {
+  inFlightGoogleFlows.clear();
+  completedGoogleFlows.clear();
+  clearGoogleOAuthTransaction();
+};
+
 interface CognitoOAuthTokenResponse {
   access_token?: string;
   refresh_token?: string;
