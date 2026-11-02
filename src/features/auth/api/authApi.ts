@@ -190,16 +190,24 @@ export const authApi = {
   /**
    * Tạo URL chuyển hướng đăng nhập với Google qua AWS Cognito Hosted UI OAuth2
    */
-  getGoogleAuthorizeUrl: (redirectUri: string = getCognitoRedirectUri(), state?: string): string => {
+  getGoogleAuthorizeUrl: (
+    redirectUri: string = getCognitoRedirectUri(),
+    state?: string,
+    codeChallenge?: string,
+  ): string => {
     const params = new URLSearchParams({
-      identity_provider: 'Google',
-      redirect_uri: redirectUri,
       response_type: 'code',
+      identity_provider: 'Google',
       client_id: getCognitoClientId(),
-      scope: 'openid email profile',
+      redirect_uri: redirectUri,
+      scope: getCognitoScopes(),
     });
     if (state) {
       params.set('state', state);
+    }
+    if (codeChallenge) {
+      params.set('code_challenge_method', 'S256');
+      params.set('code_challenge', codeChallenge);
     }
     return `${getCognitoDomain()}/oauth2/authorize?${params.toString()}`;
   },
