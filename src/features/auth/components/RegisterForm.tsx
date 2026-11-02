@@ -90,7 +90,7 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess }) => {
   };
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="auth-form" noValidate>
+    <form onSubmit={handleSubmit(onSubmit)} className="auth-form" noValidate aria-busy={isSubmitting}>
       {/* Banner cảnh báo email đã tồn tại kèm link sang trang xác minh OTP */}
       {emailExists && (
         <div
@@ -129,7 +129,13 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess }) => {
         </label>
         <input
           id="register-email"
+          required
+          aria-invalid={!!errors.email}
+          aria-describedby={errors.email ? 'register-email-error' : undefined}
           type="email"
+          inputMode="email"
+          autoCapitalize="none"
+          spellCheck={false}
           autoComplete="email"
           className="form-input"
           placeholder="learner@example.com"
@@ -137,7 +143,7 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess }) => {
           style={errors.email ? { borderColor: 'var(--color-error)' } : undefined}
         />
         {errors.email && (
-          <span style={{ color: 'var(--color-error)', fontSize: '0.8rem', fontWeight: 600 }}>
+          <span id="register-email-error" className="form-error" role="alert" style={{ color: 'var(--color-error)', fontSize: '0.8rem', fontWeight: 600 }}>
             {errors.email.message}
           </span>
         )}
@@ -150,6 +156,9 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess }) => {
         </label>
         <input
           id="register-displayName"
+          required
+          aria-invalid={!!errors.displayName}
+          aria-describedby={errors.displayName ? 'register-displayName-error' : undefined}
           type="text"
           autoComplete="name"
           className="form-input"
@@ -158,7 +167,7 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess }) => {
           style={errors.displayName ? { borderColor: 'var(--color-error)' } : undefined}
         />
         {errors.displayName && (
-          <span style={{ color: 'var(--color-error)', fontSize: '0.8rem', fontWeight: 600 }}>
+          <span id="register-displayName-error" className="form-error" role="alert" style={{ color: 'var(--color-error)', fontSize: '0.8rem', fontWeight: 600 }}>
             {errors.displayName.message}
           </span>
         )}
@@ -172,6 +181,9 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess }) => {
         <div style={{ position: 'relative' }}>
           <input
             id="register-password"
+          required
+          aria-invalid={!!errors.password}
+          aria-describedby={errors.password ? 'register-password-error' : undefined}
             type={showPassword ? 'text' : 'password'}
             autoComplete="new-password"
             className="form-input"
@@ -194,14 +206,16 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess }) => {
               display: 'flex',
               alignItems: 'center',
             }}
-            tabIndex={-1}
+            className="auth-password-toggle"
+            aria-controls="register-password"
+            aria-pressed={showPassword}
             aria-label={showPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
           >
             {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
           </button>
         </div>
         {errors.password && (
-          <span style={{ color: 'var(--color-error)', fontSize: '0.8rem', fontWeight: 600 }}>
+          <span id="register-password-error" className="form-error" role="alert" style={{ color: 'var(--color-error)', fontSize: '0.8rem', fontWeight: 600 }}>
             {errors.password.message}
           </span>
         )}
@@ -215,6 +229,9 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess }) => {
         <div style={{ position: 'relative' }}>
           <input
             id="register-confirmPassword"
+          required
+          aria-invalid={!!errors.confirmPassword}
+          aria-describedby={errors.confirmPassword ? 'register-confirmPassword-error' : undefined}
             type={showConfirmPassword ? 'text' : 'password'}
             autoComplete="new-password"
             className="form-input"
@@ -237,14 +254,16 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess }) => {
               display: 'flex',
               alignItems: 'center',
             }}
-            tabIndex={-1}
+            className="auth-password-toggle"
+            aria-controls="register-confirmPassword"
+            aria-pressed={showConfirmPassword}
             aria-label={showConfirmPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
           >
             {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
           </button>
         </div>
         {errors.confirmPassword && (
-          <span style={{ color: 'var(--color-error)', fontSize: '0.8rem', fontWeight: 600 }}>
+          <span id="register-confirmPassword-error" className="form-error" role="alert" style={{ color: 'var(--color-error)', fontSize: '0.8rem', fontWeight: 600 }}>
             {errors.confirmPassword.message}
           </span>
         )}

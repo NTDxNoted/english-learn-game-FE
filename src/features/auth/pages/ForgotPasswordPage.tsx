@@ -91,14 +91,20 @@ export const ForgotPasswordPage: React.FC = () => {
           </div>
         )}
 
-        <form onSubmit={handleSubmit(onSubmit)} className="auth-form" noValidate>
+        <form onSubmit={handleSubmit(onSubmit)} className="auth-form" noValidate aria-busy={isSubmitting}>
           <div className="form-group">
             <label className="form-label" htmlFor="forgot-email">
               Địa chỉ Email <span style={{ color: 'var(--color-brand-accent)' }}>*</span>
             </label>
             <input
               id="forgot-email"
+          required
+          aria-invalid={!!errors.email}
+          aria-describedby={errors.email ? 'forgot-email-error' : undefined}
               type="email"
+          inputMode="email"
+          autoCapitalize="none"
+          spellCheck={false}
               autoComplete="email"
               className="form-input"
               placeholder="learner@example.com"
@@ -106,7 +112,7 @@ export const ForgotPasswordPage: React.FC = () => {
               style={errors.email ? { borderColor: 'var(--color-error)' } : undefined}
             />
             {errors.email && (
-              <span style={{ color: 'var(--color-error)', fontSize: '0.8rem', fontWeight: 600 }}>
+              <span id="forgot-email-error" className="form-error" role="alert" style={{ color: 'var(--color-error)', fontSize: '0.8rem', fontWeight: 600 }}>
                 {errors.email.message}
               </span>
             )}

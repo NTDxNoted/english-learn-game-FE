@@ -1,5 +1,5 @@
 ﻿export type UserRole = 'learner' | 'admin';
-export type UserStatus = 'ACTIVE' | 'LOCKED';
+export type UserStatus = 'ACTIVE' | 'BLOCKED';
 
 export interface UserProfile {
   id: number;

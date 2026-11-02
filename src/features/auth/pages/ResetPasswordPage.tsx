@@ -155,7 +155,7 @@ export const ResetPasswordPage: React.FC = () => {
           </div>
         )}
 
-        <form onSubmit={handleSubmit(onSubmit)} className="auth-form" noValidate>
+        <form onSubmit={handleSubmit(onSubmit)} className="auth-form" noValidate aria-busy={isSubmitting}>
           {/* Trường Email */}
           <div className="form-group">
             <label className="form-label" htmlFor="reset-email">
@@ -163,7 +163,13 @@ export const ResetPasswordPage: React.FC = () => {
             </label>
             <input
               id="reset-email"
+          required
+          aria-invalid={!!errors.email}
+          aria-describedby={errors.email ? 'reset-email-error' : undefined}
               type="email"
+          inputMode="email"
+          autoCapitalize="none"
+          spellCheck={false}
               autoComplete="email"
               className="form-input"
               placeholder="learner@example.com"
@@ -171,7 +177,7 @@ export const ResetPasswordPage: React.FC = () => {
               style={errors.email ? { borderColor: 'var(--color-error)' } : undefined}
             />
             {errors.email && (
-              <span style={{ color: 'var(--color-error)', fontSize: '0.8rem', fontWeight: 600 }}>
+              <span id="reset-email-error" className="form-error" role="alert" style={{ color: 'var(--color-error)', fontSize: '0.8rem', fontWeight: 600 }}>
                 {errors.email.message}
               </span>
             )}
@@ -192,6 +198,9 @@ export const ResetPasswordPage: React.FC = () => {
             </div>
             <input
               id="reset-code"
+          required
+          aria-invalid={!!errors.code}
+          aria-describedby={errors.code ? 'reset-code-error' : undefined}
               type="text"
               inputMode="numeric"
               maxLength={6}
@@ -208,7 +217,7 @@ export const ResetPasswordPage: React.FC = () => {
               {...register('code')}
             />
             {errors.code && (
-              <span style={{ color: 'var(--color-error)', fontSize: '0.8rem', fontWeight: 600 }}>
+              <span id="reset-code-error" className="form-error" role="alert" style={{ color: 'var(--color-error)', fontSize: '0.8rem', fontWeight: 600 }}>
                 {errors.code.message}
               </span>
             )}
@@ -222,6 +231,9 @@ export const ResetPasswordPage: React.FC = () => {
             <div style={{ position: 'relative' }}>
               <input
                 id="new-password"
+          required
+          aria-invalid={!!errors.newPassword}
+          aria-describedby={errors.newPassword ? 'new-password-error' : undefined}
                 type={showNewPassword ? 'text' : 'password'}
                 autoComplete="new-password"
                 className="form-input"
@@ -244,14 +256,16 @@ export const ResetPasswordPage: React.FC = () => {
                   display: 'flex',
                   alignItems: 'center',
                 }}
-                tabIndex={-1}
-                aria-label={showNewPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
+                    className="auth-password-toggle"
+            aria-controls="new-password"
+            aria-pressed={showNewPassword}
+            aria-label={showNewPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
               >
                 {showNewPassword ? <EyeOff size={18} /> : <Eye size={18} />}
               </button>
             </div>
             {errors.newPassword && (
-              <span style={{ color: 'var(--color-error)', fontSize: '0.8rem', fontWeight: 600 }}>
+              <span id="new-password-error" className="form-error" role="alert" style={{ color: 'var(--color-error)', fontSize: '0.8rem', fontWeight: 600 }}>
                 {errors.newPassword.message}
               </span>
             )}
@@ -265,6 +279,9 @@ export const ResetPasswordPage: React.FC = () => {
             <div style={{ position: 'relative' }}>
               <input
                 id="confirm-password"
+          required
+          aria-invalid={!!errors.confirmPassword}
+          aria-describedby={errors.confirmPassword ? 'confirm-password-error' : undefined}
                 type={showConfirmPassword ? 'text' : 'password'}
                 autoComplete="new-password"
                 className="form-input"
@@ -287,14 +304,16 @@ export const ResetPasswordPage: React.FC = () => {
                   display: 'flex',
                   alignItems: 'center',
                 }}
-                tabIndex={-1}
-                aria-label={showConfirmPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
+                    className="auth-password-toggle"
+            aria-controls="confirm-password"
+            aria-pressed={showConfirmPassword}
+            aria-label={showConfirmPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
               >
                 {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
               </button>
             </div>
             {errors.confirmPassword && (
-              <span style={{ color: 'var(--color-error)', fontSize: '0.8rem', fontWeight: 600 }}>
+              <span id="confirm-password-error" className="form-error" role="alert" style={{ color: 'var(--color-error)', fontSize: '0.8rem', fontWeight: 600 }}>
                 {errors.confirmPassword.message}
               </span>
             )}
