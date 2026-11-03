@@ -212,6 +212,24 @@ export const authApi = {
     return `${getCognitoDomain()}/oauth2/authorize?${params.toString()}`;
   },
 
+  startGoogleLogin: async (returnTo?: string | null): Promise<string> => {
+    resetGoogleOAuthCoordinator();
+    const state = generateRandomBase64Url(24);
+    const codeVerifier = generateRandomBase64Url(32);
+    const codeChallenge = await computeCodeChallengeS256(codeVerifier);
+    const redirectUri = getCognitoRedirectUri();
+
+    saveGoogleOAuthTransaction({
+      state,
+      codeVerifier,
+      redirectUri,
+      createdAt: Date.now(),
+      returnTo: sanitizeReturnTo(returnTo),
+    });
+
+    return authApi.getGoogleAuthorizeUrl(redirectUri, state, codeChallenge);
+  },
+
   /**
    * Đổi OAuth2 authorization code từ Google/Cognito sang bộ AuthTokens
    * Ưu tiên gọi Backend POST /api/auth/google và fallback sang Cognito /oauth2/token
