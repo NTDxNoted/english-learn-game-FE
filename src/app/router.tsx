@@ -1,4 +1,4 @@
-﻿import { createBrowserRouter } from 'react-router-dom';
+﻿import { createBrowserRouter, Navigate } from 'react-router-dom';
 import { AppLayout } from '../components/layout/AppLayout';
 import { HomePage } from '../pages/HomePage';
 import { NotFoundPage } from '../pages/NotFoundPage';
@@ -13,7 +13,13 @@ import { TopicListPage } from '../features/topics/pages/TopicListPage';
 import { GameSessionPage } from '../features/game/pages/GameSessionPage';
 import { ProgressPage } from '../features/progress/pages/ProgressPage';
 import { LeaderboardPage } from '../features/leaderboard/pages/LeaderboardPage';
-import { AdminTopicListPage } from '../features/admin/pages/AdminTopicListPage';
+import { AdminGuard } from '../features/admin/components/AdminGuard';
+import { AdminLayout } from '../features/admin/components/AdminLayout';
+import { TopicList } from '../features/admin/pages/TopicList';
+import { VocabularyList } from '../features/admin/pages/VocabularyList';
+import { ConfigPage } from '../features/admin/pages/ConfigPage';
+import { UserList } from '../features/admin/pages/UserList';
+import { AuditList } from '../features/admin/pages/AuditList';
 
 export const router = createBrowserRouter([
   // Nhóm route có giao diện chính (AppLayout)
@@ -59,30 +65,19 @@ export const router = createBrowserRouter([
           </ProtectedRoute>
         ),
       },
-      // Admin routes (Giữ nguyên hiện trạng)
       {
         path: 'admin',
+        element: <AdminGuard><AdminLayout /></AdminGuard>,
         children: [
-          {
-            index: true,
-            element: <AdminTopicListPage />,
-          },
-          {
-            path: 'topics',
-            element: <AdminTopicListPage />,
-          },
-          {
-            path: 'users',
-            element: <AdminTopicListPage />,
-          },
-          {
-            path: 'vocabularies',
-            element: <AdminTopicListPage />,
-          },
-          {
-            path: 'game-configs',
-            element: <AdminTopicListPage />,
-          },
+          { index: true, element: <Navigate to="topics" replace /> },
+          { path: 'topics', element: <TopicList /> },
+          { path: 'topics/:topicId/vocabularies', element: <VocabularyList /> },
+          { path: 'topics/:topicId/game-configs', element: <ConfigPage /> },
+          { path: 'users', element: <UserList /> },
+          { path: 'vocabularies', element: <Navigate to="/admin/topics" replace /> },
+          { path: 'game-configs', element: <Navigate to="/admin/game-configs/global" replace /> },
+          { path: 'game-configs/global', element: <ConfigPage /> },
+          { path: 'game-configs/audits', element: <AuditList /> },
         ],
       },
     ],
