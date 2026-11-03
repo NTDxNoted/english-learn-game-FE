@@ -1,4 +1,3 @@
-import axios from 'axios';
 import { http } from '../../../lib/apiClient';
 import { ApiError, type ApiResponse } from '../../../types/api.types';
 import type {
@@ -7,7 +6,7 @@ import type {
   ConfirmRegisterRequest,
   ResendCodeRequest,
   LoginRequest,
-  GoogleCodeExchangeRequest,
+  GoogleAuthRequest,
   RefreshTokenRequest,
   AuthTokens,
   UserProfile,
@@ -176,16 +175,6 @@ export const resetGoogleOAuthCoordinator = (): void => {
   clearGoogleOAuthTransaction();
 };
 
-interface CognitoOAuthTokenResponse {
-  access_token?: string;
-  refresh_token?: string;
-  id_token?: string;
-  token_type?: string;
-  expires_in?: number;
-  error?: string;
-  error_description?: string;
-}
-
 export const authApi = {
   /**
    * Tạo URL chuyển hướng đăng nhập với Google qua AWS Cognito Hosted UI OAuth2
@@ -230,28 +219,11 @@ export const authApi = {
     return authApi.getGoogleAuthorizeUrl(redirectUri, state, codeChallenge);
   },
 
-  /**
-   * Đổi OAuth2 authorization code từ Google/Cognito sang bộ AuthTokens
-   * Ưu tiên gọi Backend POST /api/auth/google và fallback sang Cognito /oauth2/token
-   */
-  exchangeGoogleCode: async (data: GoogleCodeExchangeRequest): Promise<ApiResponse<AuthTokens>> => {
-    try {
-      return await http.post<AuthTokens, GoogleCodeExchangeRequest>('/auth/google', data);
-    } catch {
-      const body = new URLSearchParams({
-        grant_type: 'authorization_code',
-        client_id: getCognitoClientId(),
-        code: data.code,
-        redirect_uri: data.redirectUri,
-      });
+  loginWithGoogle: (data: GoogleAuthRequest): Promise<ApiResponse<AuthTokens>> =>
+    http.post<AuthTokens, GoogleAuthRequest>('/auth/google', data),
 
-      const response = await axios.post<CognitoOAuthTokenResponse>(
-        `${getCognitoDomain()}/oauth2/token`,
-        body.toString(),
-        {
-          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-          timeout: 15000,
-        },
+  exchangeGoogleCode: (data: GoogleAuthRequest): Promise<ApiResponse<AuthTokens>> =>
+    http.post<AuthTokens, GoogleAuthRequest>('/auth/google', data),
       );
 
       const payload = response.data;
