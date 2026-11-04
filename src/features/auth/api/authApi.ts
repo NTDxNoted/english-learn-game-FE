@@ -225,6 +225,9 @@ export const authApi = {
 
   exchangeGoogleCode: (data: GoogleAuthRequest): Promise<ApiResponse<AuthTokens>> =>
     http.post<AuthTokens, GoogleAuthRequest>('/auth/google', data),
+
+  syncUserWithToken: (accessToken: string): Promise<ApiResponse<UserProfile>> =>
+    authApi.syncUser(accessToken),
       );
 
       const payload = response.data;
@@ -306,8 +309,14 @@ export const authApi = {
    * Đồng bộ thông tin người dùng từ Cognito vào database
    * POST /api/auth/sync
    */
-  syncUser: (): Promise<ApiResponse<UserProfile>> =>
-    http.post<UserProfile>('/auth/sync'),
+  syncUser: (accessToken?: string): Promise<ApiResponse<UserProfile>> =>
+    http.post<UserProfile>(
+      '/auth/sync',
+      undefined,
+      accessToken
+        ? { _explicitAccessToken: accessToken, _skipAuthRefresh: true }
+        : { _skipAuthRefresh: true },
+    ),
 
   /**
    * Yêu cầu gửi mã OTP khôi phục mật khẩu qua email
