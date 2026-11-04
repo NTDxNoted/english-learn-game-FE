@@ -8,7 +8,9 @@ export interface TopicItem {
   description: string;
   iconUrl?: string | null;
   orderNo?: number;
-  totalWords: number;
-  completedWords: number;
+  imageUrl?: string | null;
+  // Counts are available only when joined with the user's progress response.
+  totalWords?: number;
+  completedWords?: number;
   isActive?: boolean;
 }
