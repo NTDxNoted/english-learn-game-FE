@@ -31,6 +31,12 @@ export interface GoogleOAuthTransaction {
   returnTo?: string;
 }
 
+export interface GoogleLoginFlowResult {
+  tokens: AuthTokens;
+  profile: UserProfile;
+  returnTo?: string;
+}
+
 const getCognitoDomain = (): string =>
   ((import.meta.env.VITE_COGNITO_DOMAIN as string | undefined) || DEFAULT_COGNITO_DOMAIN).replace(/\/+$/, '');
 
@@ -69,7 +75,6 @@ export const sanitizeReturnTo = (path?: string | null): string | undefined => {
   return trimmed;
 };
 
-
 const toBase64Url = (bytes: Uint8Array): string => {
   let binary = '';
   for (let i = 0; i < bytes.byteLength; i++) {
@@ -93,7 +98,6 @@ export const generateRandomBase64Url = (byteLength = 32): string => {
   return toBase64Url(bytes);
 };
 
-
 export const computeCodeChallengeS256 = async (codeVerifier: string): Promise<string> => {
   if (typeof globalThis.crypto?.subtle?.digest !== 'function') {
     throw new ApiError(
@@ -109,7 +113,6 @@ export const computeCodeChallengeS256 = async (codeVerifier: string): Promise<st
   return toBase64Url(new Uint8Array(digest));
 };
 
-
 export const saveGoogleOAuthTransaction = (tx: GoogleOAuthTransaction): void => {
   if (typeof sessionStorage === 'undefined') {
     throw new ApiError(
@@ -122,7 +125,6 @@ export const saveGoogleOAuthTransaction = (tx: GoogleOAuthTransaction): void => 
   }
   sessionStorage.setItem(GOOGLE_OAUTH_TX_STORAGE_KEY, JSON.stringify(tx));
 };
-
 
 export const readGoogleOAuthTransaction = (): GoogleOAuthTransaction | null => {
   try {
@@ -160,13 +162,6 @@ export const clearGoogleOAuthTransaction = (): void => {
   }
 };
 
-
-export interface GoogleLoginFlowResult {
-  tokens: AuthTokens;
-  profile: UserProfile;
-  returnTo?: string;
-}
-
 const inFlightGoogleFlows = new Map<string, Promise<GoogleLoginFlowResult>>();
 const completedGoogleFlows = new Map<string, GoogleLoginFlowResult>();
 
@@ -178,7 +173,7 @@ export const resetGoogleOAuthCoordinator = (): void => {
 
 export const authApi = {
   /**
-   * Tạo URL chuyển hướng đăng nhập với Google qua AWS Cognito Hosted UI OAuth2
+   * Tạo URL chuyển hướng đăng nhập với Google qua AWS Cognito Hosted UI OAuth2 + PKCE S256
    */
   getGoogleAuthorizeUrl: (
     redirectUri: string = getCognitoRedirectUri(),
@@ -202,6 +197,9 @@ export const authApi = {
     return `${getCognitoDomain()}/oauth2/authorize?${params.toString()}`;
   },
 
+  /**
+   * Khởi tạo giao dịch Google OAuth2 (state + PKCE S256), lưu vào sessionStorage và trả về URL điều hướng
+   */
   startGoogleLogin: async (returnTo?: string | null): Promise<string> => {
     resetGoogleOAuthCoordinator();
     const state = generateRandomBase64Url(24);
@@ -220,40 +218,121 @@ export const authApi = {
     return authApi.getGoogleAuthorizeUrl(redirectUri, state, codeChallenge);
   },
 
+  /**
+   * Đổi OAuth2 authorization code + PKCE codeVerifier qua Backend
+   * POST /api/auth/google
+   */
   loginWithGoogle: (data: GoogleAuthRequest): Promise<ApiResponse<AuthTokens>> =>
     http.post<AuthTokens, GoogleAuthRequest>('/auth/google', data),
 
+  /**
+   * Alias tương thích ngược cho loginWithGoogle
+   */
   exchangeGoogleCode: (data: GoogleAuthRequest): Promise<ApiResponse<AuthTokens>> =>
     http.post<AuthTokens, GoogleAuthRequest>('/auth/google', data),
 
+  /**
+   * Đồng bộ thông tin người dùng bằng accessToken tạm (chưa ghi vào tokenStorage, không auto-refresh)
+   * POST /api/auth/sync
+   */
   syncUserWithToken: (accessToken: string): Promise<ApiResponse<UserProfile>> =>
     authApi.syncUser(accessToken),
-      );
 
-      const payload = response.data;
-      if (!payload?.access_token) {
+  /**
+   * Điều phối đổi code + gọi Sync đúng một lần cho mỗi giao dịch callback (chống StrictMode / remount replay)
+   */
+  completeGoogleLoginOnce: async (
+    code: string,
+    callbackState: string | null,
+  ): Promise<GoogleLoginFlowResult> => {
+    const trimmedCode = code.trim();
+    const trimmedState = callbackState?.trim() || '';
+
+    if (trimmedState && inFlightGoogleFlows.has(trimmedState)) {
+      return inFlightGoogleFlows.get(trimmedState)!;
+    }
+
+    if (trimmedState && completedGoogleFlows.has(trimmedState)) {
+      return completedGoogleFlows.get(trimmedState)!;
+    }
+
+    const tx = readGoogleOAuthTransaction();
+    if (
+      !trimmedCode ||
+      !trimmedState ||
+      !tx ||
+      tx.state !== trimmedState ||
+      !tx.redirectUri ||
+      !PKCE_VERIFIER_PATTERN.test(tx.codeVerifier) ||
+      Date.now() - tx.createdAt > GOOGLE_OAUTH_TX_MAX_AGE_MS
+    ) {
+      clearGoogleOAuthTransaction();
+      throw new ApiError(
+        {
+          message: 'Phiên xác thực Google không hợp lệ hoặc đã hết hạn. Vui lòng thử đăng nhập lại.',
+          errorCode: 'OAUTH_STATE_INVALID',
+        },
+        400,
+      );
+    }
+
+    // Xóa ngay giao dịch khỏi sessionStorage để không thể dùng lại code lần 2
+    clearGoogleOAuthTransaction();
+
+    const flowPromise = (async (): Promise<GoogleLoginFlowResult> => {
+      const exchangeRes = await authApi.loginWithGoogle({
+        code: trimmedCode,
+        redirectUri: tx.redirectUri,
+        codeVerifier: tx.codeVerifier,
+      });
+
+      const tokens = exchangeRes.data;
+      if (!tokens?.accessToken) {
         throw new ApiError(
           {
-            message: payload?.error_description || 'Không nhận được access token từ Google OAuth.',
-            errorCode: payload?.error || 'GOOGLE_AUTH_FAILED',
+            message: 'Phản hồi xác thực Google không hợp lệ từ máy chủ.',
+            errorCode: 'COGNITO_OAUTH_INVALID_RESPONSE',
           },
-          401,
+          502,
         );
       }
 
-      return {
-        success: true,
-        data: {
-          accessToken: payload.access_token,
-          refreshToken: payload.refresh_token,
-          idToken: payload.id_token,
-          tokenType: payload.token_type || 'Bearer',
-          expiresIn: payload.expires_in ?? 3600,
-        },
-        message: 'Đăng nhập Google thành công',
-        timestamp: new Date().toISOString(),
+      const syncRes = await authApi.syncUser(tokens.accessToken);
+      const profile = syncRes.data;
+
+      if (profile.status === 'BLOCKED') {
+        throw new ApiError(
+          {
+            message: 'Tài khoản của bạn đã bị khóa.',
+            errorCode: 'ACCOUNT_BLOCKED',
+          },
+          403,
+        );
+      }
+
+      if (profile.status !== 'ACTIVE') {
+        throw new ApiError(
+          {
+            message: 'Tài khoản của bạn hiện không ở trạng thái hoạt động.',
+            errorCode: 'ACCOUNT_INACTIVE',
+          },
+          403,
+        );
+      }
+
+      const result: GoogleLoginFlowResult = {
+        tokens,
+        profile,
+        returnTo: tx.returnTo,
       };
-    }
+      completedGoogleFlows.set(trimmedState, result);
+      return result;
+    })().finally(() => {
+      inFlightGoogleFlows.delete(trimmedState);
+    });
+
+    inFlightGoogleFlows.set(trimmedState, flowPromise);
+    return flowPromise;
   },
 
   /**
@@ -292,7 +371,7 @@ export const authApi = {
     http.post<AuthTokens, RefreshTokenRequest>('/auth/refresh', data),
 
   /**
-   * Đăng xuất tài khoản người dùng (thu hồi refresh token qua Cognito GlobalSignOut)
+   * Đăng xuất tài khoản người dùng (trả về logoutUrl của AWS Cognito)
    * POST /api/auth/logout
    */
   logout: (): Promise<ApiResponse<LogoutResponse | null>> =>
