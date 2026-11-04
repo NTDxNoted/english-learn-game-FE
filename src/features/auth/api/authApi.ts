@@ -9,6 +9,7 @@ import type {
   GoogleAuthRequest,
   RefreshTokenRequest,
   AuthTokens,
+  LogoutResponse,
   UserProfile,
   ForgotPasswordRequest,
   ResetPasswordRequest,
@@ -291,8 +292,8 @@ export const authApi = {
    * Đăng xuất tài khoản người dùng (thu hồi refresh token qua Cognito GlobalSignOut)
    * POST /api/auth/logout
    */
-  logout: (): Promise<ApiResponse<null>> =>
-    http.post<null>('/auth/logout'),
+  logout: (): Promise<ApiResponse<LogoutResponse | null>> =>
+    http.post<LogoutResponse | null>('/auth/logout'),
 
   /**
    * Lấy thông tin tài khoản người dùng hiện tại (profile & role)
