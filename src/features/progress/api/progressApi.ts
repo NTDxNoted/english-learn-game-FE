@@ -3,7 +3,7 @@ import type { ApiResponse } from '../../../types/api.types';
 
 export interface UserStreak {
   currentStreak: number;
-  lastStreakDate?: string;
+  lastStreakDate?: string | null;
   completedToday: boolean;
   today?: string;
   timeZone?: string;
@@ -39,17 +39,17 @@ export interface GameHistoryItem {
   topicName: string;
   mode: string;
   status: string;
-  score: number;
-  won: boolean;
+  score: number | null;
+  isWon: boolean | null;
   startedAt: string;
-  finishedAt?: string;
+  endedAt: string | null;
 }
 
 export interface GameHistoryPage {
-  items: GameHistoryItem[];
+  content: GameHistoryItem[];
   page: number;
   size: number;
-  totalItems: number;
+  totalElements: number;
   totalPages: number;
 }
 
@@ -58,28 +58,28 @@ export const progressApi = {
    * Lấy chuỗi streak hiện tại của người dùng
    * GET /api/users/me/streak
    */
-  getMyStreak: (): Promise<ApiResponse<UserStreak>> =>
-    http.get<UserStreak>('/users/me/streak'),
+  getMyStreak: (signal?: AbortSignal): Promise<ApiResponse<UserStreak>> =>
+    http.get<UserStreak>('/users/me/streak', undefined, { signal }),
 
   /**
    * Lấy thống kê chơi game tổng thể (tổng số màn, thắng, độ chính xác)
    * GET /api/users/me/game-statistics
    */
-  getMyGameStatistics: (): Promise<ApiResponse<GameStatistics>> =>
-    http.get<GameStatistics>('/users/me/game-statistics'),
+  getMyGameStatistics: (signal?: AbortSignal): Promise<ApiResponse<GameStatistics>> =>
+    http.get<GameStatistics>('/users/me/game-statistics', undefined, { signal }),
 
   /**
    * Lấy tiến trình theo từng chủ đề
    * GET /api/users/me/progress
    */
-  getMyProgress: (): Promise<ApiResponse<GameProgressData>> =>
-    http.get<GameProgressData>('/users/me/progress'),
+  getMyProgress: (signal?: AbortSignal): Promise<ApiResponse<GameProgressData>> =>
+    http.get<GameProgressData>('/users/me/progress', undefined, { signal }),
 
   /**
    * Lấy lịch sử các phiên chơi
    * GET /api/users/me/game-history
    */
-  getMyGameHistory: (page = 0, size = 10): Promise<ApiResponse<GameHistoryPage>> =>
-    http.get<GameHistoryPage>(`/users/me/game-history?page=${page}&size=${size}`),
+  getMyGameHistory: (page = 0, size = 10, signal?: AbortSignal): Promise<ApiResponse<GameHistoryPage>> =>
+    http.get<GameHistoryPage>('/users/me/game-history', { page, size }, { signal }),
 };
 
