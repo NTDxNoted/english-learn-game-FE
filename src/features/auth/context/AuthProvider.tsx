@@ -5,9 +5,16 @@ import { tokenStorage } from '../../../lib/tokenStorage';
 import { queryClient } from '../../../app/providers/queryClient';
 import type { UserProfile, AuthTokens, AuthContextType } from '../types/auth.types';
 
+const isOAuthCallbackBoot = (): boolean => {
+  if (typeof window === 'undefined') return false;
+  if (window.location.pathname.startsWith('/callback')) return true;
+  const params = new URLSearchParams(window.location.search);
+  return Boolean(params.get('code') || params.get('error'));
+};
+
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<UserProfile | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(() => !isOAuthCallbackBoot());
   const [sessionError, setSessionError] = useState(false);
   const isAuthenticated = user?.status === 'ACTIVE';
   const refreshUser = useCallback(async () => {
