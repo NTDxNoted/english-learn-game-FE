@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo, type ReactNode } from 'react';
 import { AuthContext } from './AuthContext';
-import { authApi } from '../api/authApi';
+import { authApi, resetGoogleOAuthCoordinator } from '../api/authApi';
 import { tokenStorage } from '../../../lib/tokenStorage';
 import { queryClient } from '../../../app/providers/queryClient';
 import type { UserProfile, AuthTokens, AuthContextType } from '../types/auth.types';
@@ -59,9 +59,19 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     else void refreshUser();
   }, [refreshUser]);
   const logout = useCallback(async () => {
-    try { await authApi.logout(); }
+    let logoutUrl: string | undefined;
+    try {
+      const res = await authApi.logout();
+      if (res?.data && typeof res.data === 'object' && typeof res.data.logoutUrl === 'string') {
+        logoutUrl = res.data.logoutUrl.trim();
+      }
+    }
     catch { /* Local logout must complete even if the remote service is unavailable. */ }
-    finally { tokenStorage.notifyUnauthorized(); }
+    finally {
+      void logoutUrl;
+      resetGoogleOAuthCoordinator();
+      tokenStorage.notifyUnauthorized();
+    }
   }, []);
   const value = useMemo<AuthContextType>(() => ({ user, isAuthenticated, isLoading, login, logout, refreshUser }),
     [user, isAuthenticated, isLoading, login, logout, refreshUser]);
