@@ -1,4 +1,4 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import { Camera, ChevronDown, ChevronUp, AlertTriangle } from 'lucide-react';
 
 interface CameraPreviewProps {
@@ -19,11 +19,12 @@ export const CameraPreview: React.FC<CameraPreviewProps> = ({
   const [isMinimized, setIsMinimized] = useState(false);
   const isLowFps = fps > 0 && fps < 15;
 
-  if (!isGestureMode) return null;
+
 
   return (
     <div
       style={{
+        display: isGestureMode ? undefined : 'none',
         position: 'fixed',
         bottom: '1.5rem',
         left: '1.5rem',
@@ -79,8 +80,8 @@ export const CameraPreview: React.FC<CameraPreviewProps> = ({
       </div>
 
       {/* Video khung nhìn */}
-      {!isMinimized && (
-        <div style={{ position: 'relative', width: '100%', height: '160px', backgroundColor: '#000000' }}>
+
+        <div hidden={isMinimized} style={{ position: 'relative', width: '100%', height: '160px', backgroundColor: '#000000' }}>
           <video
             ref={videoRef}
             autoPlay
@@ -94,7 +95,6 @@ export const CameraPreview: React.FC<CameraPreviewProps> = ({
             }}
           />
         </div>
-      )}
 
       {/* Dòng trạng thái hướng dẫn */}
       <div style={{ padding: '0.5rem 0.75rem', fontSize: '0.78rem', backgroundColor: '#fbfaf7' }}>
@@ -136,3 +136,4 @@ export const CameraPreview: React.FC<CameraPreviewProps> = ({
     </div>
   );
 };
+

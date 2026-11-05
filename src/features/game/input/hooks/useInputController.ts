@@ -7,7 +7,6 @@ import type {
 } from '../controllers/InputController';
 import { GestureInputController } from '../controllers/GestureInputController';
 import { MouseInputController } from '../controllers/MouseInputController';
-import { useGameConfig } from '../../hooks/useGameConfig';
 
 interface UseInputControllerOptions {
   onTileDrop?: (drop: TileDropEvent) => void;
@@ -16,116 +15,114 @@ interface UseInputControllerOptions {
   onCursorMove?: (cursor: CursorPosition) => void;
 }
 
-export const useInputController = (options: UseInputControllerOptions = {}) => {
-  const { config } = useGameConfig();
-  const [mode, setMode] = useState<InputMode>('gesture');
-  const [statusText, setStatusText] = useState<string>('Đang chuẩn bị điều khiển...');
-  const [fps, setFps] = useState<number>(0);
-  const [isPermissionGateOpen, setIsPermissionGateOpen] = useState<boolean>(true);
-  const [isStarting, setIsStarting] = useState<boolean>(false);
+const cameraErrorMessage = (error: unknown) => {
+  if (error instanceof Error || error instanceof DOMException) {
+    if (error.name === 'NotAllowedError' || error.name === 'SecurityError') {
+      return 'Chưa được cấp quyền camera. Hãy cho phép camera trong trình duyệt rồi thử lại.';
+    }
+    if (error.name === 'NotFoundError') return 'Không tìm thấy camera. Hãy kết nối camera rồi thử lại.';
+    if (error.name === 'NotReadableError') return 'Camera đang được ứng dụng khác sử dụng. Hãy đóng ứng dụng đó rồi thử lại.';
+    return error.message || 'Không thể bật camera. Bạn vẫn có thể chơi bằng chuột hoặc cảm ứng.';
+  }
+  return 'Không thể bật camera. Bạn vẫn có thể chơi bằng chuột hoặc cảm ứng.';
+};
 
+export const useInputController = (options: UseInputControllerOptions = {}) => {
+  const [mode, setMode] = useState<InputMode>('gesture');
+  const [statusText, setStatusText] = useState('Đang chuẩn bị điều khiển...');
+  const [fps, setFps] = useState(0);
+  const [isPermissionGateOpen, setIsPermissionGateOpen] = useState(true);
+  const [isStarting, setIsStarting] = useState(false);
+  const [inputError, setInputError] = useState<string | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-
   const gestureControllerRef = useRef<GestureInputController | null>(null);
   const mouseControllerRef = useRef<MouseInputController | null>(null);
-
-  // Lưu callbacks tùy chọn trong ref để tránh re-bind không cần thiết
   const optionsRef = useRef(options);
-  useEffect(() => {
-    optionsRef.current = options;
-  });
+  const generationRef = useRef(0);
+  const mountedRef = useRef(true);
+  const startingRef = useRef(false);
 
-  const switchToMouse = useCallback(() => {
+  useEffect(() => { optionsRef.current = options; });
+
+  const activateMouse = useCallback((error: string | null = null) => {
+    const generation = ++generationRef.current;
+    startingRef.current = false;
     gestureControllerRef.current?.stop();
-    if (!mouseControllerRef.current) {
-      mouseControllerRef.current = new MouseInputController();
-    }
+    if (!mountedRef.current) return;
+    mouseControllerRef.current ??= new MouseInputController();
+    const isCurrent = () => mountedRef.current && generation === generationRef.current;
     mouseControllerRef.current.setEvents({
-      onTileDrop: (drop) => optionsRef.current.onTileDrop?.(drop),
-      onCursorMove: (c) => optionsRef.current.onCursorMove?.(c),
-      onTileGrab: (c) => optionsRef.current.onTileGrab?.(c),
-      onTileRelease: (c) => optionsRef.current.onTileRelease?.(c),
-      onStatusChange: (status) => setStatusText(status),
+      onTileDrop: (drop) => { if (isCurrent()) optionsRef.current.onTileDrop?.(drop); },
+      onCursorMove: (cursor) => { if (isCurrent()) optionsRef.current.onCursorMove?.(cursor); },
+      onTileGrab: (cursor) => { if (isCurrent()) optionsRef.current.onTileGrab?.(cursor); },
+      onTileRelease: (cursor) => { if (isCurrent()) optionsRef.current.onTileRelease?.(cursor); },
+      onStatusChange: (status) => { if (isCurrent()) setStatusText(status); },
     });
-    mouseControllerRef.current.start();
+    void mouseControllerRef.current.start();
     setMode('mouse');
-    setStatusText('Chế độ chuột & cảm ứng đang bật');
+    setFps(0);
+    setInputError(error);
+    setIsStarting(false);
     setIsPermissionGateOpen(false);
+    setStatusText('Chế độ chuột & cảm ứng đang bật');
   }, []);
 
-  // Chuyển đổi giữa chế độ Cử chỉ tay và Chuột
-  const switchMode = useCallback(
-    async (newMode: InputMode) => {
-      if (newMode === 'mouse') {
-        switchToMouse();
-      } else {
-        if (!videoRef.current || !canvasRef.current) return;
-        setIsStarting(true);
-        setIsPermissionGateOpen(false);
+  const switchMode = useCallback(async (newMode: InputMode) => {
+    if (newMode === 'mouse') { activateMouse(); return; }
+    if (startingRef.current || !mountedRef.current) return;
+    if (!videoRef.current || !canvasRef.current) {
+      activateMouse('Khung camera chưa sẵn sàng. Vui lòng thử bật camera lại.');
+      return;
+    }
+    const generation = ++generationRef.current;
+    const isCurrent = () => mountedRef.current && generation === generationRef.current;
+    startingRef.current = true;
+    setIsStarting(true);
+    setInputError(null);
+    setIsPermissionGateOpen(false);
+    setStatusText('Đang bật camera...');
+    // Only one controller may deliver tile events while the camera starts.
+    mouseControllerRef.current?.stop();
+    try {
+      gestureControllerRef.current ??= new GestureInputController(videoRef.current, canvasRef.current);
+      gestureControllerRef.current.setElements(videoRef.current, canvasRef.current);
+      const events: InputControllerEvents = {
+        onTileDrop: (drop) => { if (isCurrent()) optionsRef.current.onTileDrop?.(drop); },
+        onCursorMove: (cursor) => { if (isCurrent()) optionsRef.current.onCursorMove?.(cursor); },
+        onTileGrab: (cursor) => { if (isCurrent()) optionsRef.current.onTileGrab?.(cursor); },
+        onTileRelease: (cursor) => { if (isCurrent()) optionsRef.current.onTileRelease?.(cursor); },
+        onStatusChange: (status) => { if (isCurrent()) setStatusText(status); },
+        onFpsUpdate: (value) => { if (isCurrent()) setFps(value); },
+        onError: (message) => { if (isCurrent()) activateMouse(message); },
+      };
+      gestureControllerRef.current.setEvents(events);
+      await gestureControllerRef.current.start();
+      if (isCurrent()) setMode('gesture');
+    } catch (error: unknown) {
+      if (isCurrent()) activateMouse(cameraErrorMessage(error));
+    } finally {
+      if (isCurrent()) { startingRef.current = false; setIsStarting(false); }
+    }
+  }, [activateMouse]);
 
-        try {
-          if (!gestureControllerRef.current) {
-            gestureControllerRef.current = new GestureInputController(videoRef.current, canvasRef.current);
-          } else {
-            gestureControllerRef.current.setElements(videoRef.current, canvasRef.current);
-          }
-
-          const events: InputControllerEvents = {
-            onTileDrop: (drop) => optionsRef.current.onTileDrop?.(drop),
-            onCursorMove: (c) => optionsRef.current.onCursorMove?.(c),
-            onTileGrab: (c) => optionsRef.current.onTileGrab?.(c),
-            onTileRelease: (c) => optionsRef.current.onTileRelease?.(c),
-            onStatusChange: (status) => setStatusText(status),
-            onFpsUpdate: (currentFps) => setFps(currentFps),
-            onError: (err) => {
-              setStatusText(err);
-              if (config.enableMouseMode) {
-                switchToMouse();
-              }
-            },
-          };
-
-          gestureControllerRef.current.setEvents(events);
-          await gestureControllerRef.current.start();
-          mouseControllerRef.current?.stop();
-          setMode('gesture');
-        } catch {
-          if (config.enableMouseMode) {
-            switchToMouse();
-          } else {
-            setStatusText('Không thể truy cập camera. Vui lòng cấp quyền trong cài đặt trình duyệt.');
-          }
-        } finally {
-          setIsStarting(false);
-        }
-      }
-    },
-    [config.enableMouseMode, switchToMouse],
-  );
-
-  const startCamera = useCallback(() => {
-    return switchMode('gesture');
-  }, [switchMode]);
-
-  // Dọn dẹp tài nguyên khi unmount hoặc chuyển trang
+  const startCamera = useCallback(() => switchMode('gesture'), [switchMode]);
+  // Controllers are created by user actions after the effect mounts.
+  const disposeInput = useCallback(() => {
+    mountedRef.current = false;
+    generationRef.current++;
+    startingRef.current = false;
+    gestureControllerRef.current?.stop();
+    mouseControllerRef.current?.stop();
+  }, []);
   useEffect(() => {
-    return () => {
-      gestureControllerRef.current?.stop();
-      mouseControllerRef.current?.stop();
-    };
-  }, []);
+    mountedRef.current = true;
+    return disposeInput;
+  }, [disposeInput]);
 
   return {
-    mode,
-    statusText,
-    fps,
-    isPermissionGateOpen,
-    isStarting,
-    videoRef,
-    canvasRef,
-    switchMode,
-    startCamera,
+    mode, statusText, fps, isPermissionGateOpen, isStarting, inputError,
+    videoRef, canvasRef, switchMode, startCamera,
     closeGate: () => setIsPermissionGateOpen(false),
   };
 };
