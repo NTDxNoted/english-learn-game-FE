@@ -44,8 +44,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       queryClient.clear();
     };
     window.addEventListener('auth:unauthorized', reset);
-    void Promise.resolve().then(() => mounted ? refreshUser() : null)
-      .finally(() => { if (mounted) setIsLoading(false); });
+    if (isOAuthCallbackBoot()) {
+      tokenStorage.clearTokens();
+    } else {
+      void Promise.resolve().then(() => mounted ? refreshUser() : null)
+        .finally(() => { if (mounted) setIsLoading(false); });
+    }
     return () => { mounted = false; window.removeEventListener('auth:unauthorized', reset); };
   }, [refreshUser]);
   const login = useCallback((tokens: AuthTokens, profile?: UserProfile) => {
