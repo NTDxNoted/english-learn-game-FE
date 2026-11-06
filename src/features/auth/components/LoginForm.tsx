@@ -20,6 +20,20 @@ import { ApiError } from '../../../types/api.types';
 import { tokenStorage } from '../../../lib/tokenStorage';
 import type { AuthTokens, UserProfile } from '../types/auth.types';
 
+const formatOAuthProviderError = (error: string, errorDesc?: string | null): string => {
+  if (error === 'access_denied') {
+    return 'Bạn đã hủy đăng nhập bằng Google.';
+  }
+  const normalizedDesc = (errorDesc || '').toLowerCase();
+  if (error === 'invalid_scope' || normalizedDesc.includes('invalid_scope')) {
+    return 'Cấu hình quyền truy cập Google (scope) trên Cognito chưa đồng bộ. Vui lòng liên hệ quản trị viên.';
+  }
+  if (normalizedDesc.includes('disabled')) {
+    return 'Tài khoản của bạn đã bị vô hiệu hóa trên hệ thống xác thực.';
+  }
+  return 'Đăng nhập bằng Google không thành công. Vui lòng thử lại.';
+};
+
 const GoogleIcon: React.FC = () => (
   <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
     <path
@@ -59,9 +73,7 @@ export const LoginForm: React.FC = () => {
 
   const [generalError, setGeneralError] = useState<string | null>(() => {
     if (!initialOAuthError) return null;
-    return initialOAuthError === 'access_denied'
-      ? 'Bạn đã hủy đăng nhập bằng Google.'
-      : initialOAuthErrorDesc || 'Đăng nhập bằng Google không thành công. Vui lòng thử lại.';
+    return formatOAuthProviderError(initialOAuthError, initialOAuthErrorDesc);
   });
   const processedOAuthRef = useRef(false);
 
