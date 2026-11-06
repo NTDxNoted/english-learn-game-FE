@@ -147,19 +147,8 @@ export const LoginForm: React.FC = () => {
     },
   });
 
-  const completeAuthenticatedSession = useCallback(
-    async (tokens: AuthTokens, preferredRedirect?: string | null) => {
-      tokenStorage.setTokens({
-        accessToken: tokens.accessToken,
-        refreshToken: tokens.refreshToken,
-      });
-
-      const syncRes = await authApi.syncUser();
-      const userProfile: UserProfile = syncRes.data;
-      if (userProfile.status !== 'ACTIVE') {
-        throw new ApiError({ message: 'Tài khoản không hoạt động.', errorCode: 'ACCOUNT_BLOCKED' }, 403);
-      }
-
+  const commitAuthenticatedSession = useCallback(
+    (tokens: AuthTokens, userProfile: UserProfile, preferredRedirect?: string | null) => {
       authLogin(tokens, userProfile);
       toastSuccess('Đăng nhập thành công! Chào mừng bạn quay trở lại.', 'Xác thực tài khoản');
 
@@ -173,6 +162,21 @@ export const LoginForm: React.FC = () => {
       }
     },
     [authLogin, navigate, searchParams, toastSuccess],
+  );
+
+  const completeAuthenticatedSession = useCallback(
+    async (tokens: AuthTokens, preferredRedirect?: string | null) => {
+      const syncRes = await authApi.syncUser(tokens.accessToken);
+      const userProfile: UserProfile = syncRes.data;
+      if (userProfile.status === 'BLOCKED') {
+        throw new ApiError({ message: 'Tài khoản của bạn đã bị khóa.', errorCode: 'ACCOUNT_BLOCKED' }, 403);
+      }
+      if (userProfile.status !== 'ACTIVE') {
+        throw new ApiError({ message: 'Tài khoản không hoạt động.', errorCode: 'ACCOUNT_INACTIVE' }, 403);
+      }
+      commitAuthenticatedSession(tokens, userProfile, preferredRedirect);
+    },
+    [commitAuthenticatedSession],
   );
 
   // Xử lý callback khi quay về từ Google OAuth (?code=... hoặc #access_token=... hoặc ?error=...)
