@@ -4,6 +4,7 @@ import { CheckCircle2, RotateCcw, Loader2, Sparkles, AlertCircle } from 'lucide-
 interface GameControlBarProps {
   canSubmit: boolean;
   isSubmitting: boolean;
+  isLocked?: boolean;
   attemptsLeft: number;
   maxAttempts: number;
   sessionScore: number;
@@ -16,6 +17,7 @@ interface GameControlBarProps {
 export const GameControlBar: React.FC<GameControlBarProps> = ({
   canSubmit,
   isSubmitting,
+  isLocked = false,
   attemptsLeft,
   maxAttempts,
   sessionScore,
@@ -28,7 +30,7 @@ export const GameControlBar: React.FC<GameControlBarProps> = ({
     <div style={{ marginTop: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
       {/* Thông báo phản hồi sau khi nộp */}
       {feedbackMessage && (
-        <div
+        <div role="status"
           style={{
             padding: '0.85rem 1.25rem',
             borderRadius: 'var(--radius-md)',
@@ -74,7 +76,7 @@ export const GameControlBar: React.FC<GameControlBarProps> = ({
         <button
           type="button"
           onClick={onReset}
-          disabled={isSubmitting}
+          disabled={isSubmitting || isLocked}
           className="btn-outline"
           style={{ justifyContent: 'center' }}
         >
