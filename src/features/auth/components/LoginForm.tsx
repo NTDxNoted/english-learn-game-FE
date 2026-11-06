@@ -34,6 +34,63 @@ const formatOAuthProviderError = (error: string, errorDesc?: string | null): str
   return 'Đăng nhập bằng Google không thành công. Vui lòng thử lại.';
 };
 
+const resolveGoogleFlowError = (
+  err: unknown,
+): { locked?: boolean; rateLimited?: boolean; message?: string } => {
+  if (err instanceof ApiError) {
+    const code = err.errorCode;
+    if (code === 'ACCOUNT_BLOCKED') {
+      return { locked: true };
+    }
+    if (code === 'TOO_MANY_REQUESTS' || err.statusCode === 429) {
+      return { rateLimited: true };
+    }
+    if (
+      code === 'EMAIL_ALREADY_EXISTS' ||
+      code === 'GOOGLE_ACCOUNT_EMAIL_CONFLICT' ||
+      err.statusCode === 409
+    ) {
+      return {
+        message: 'Email đã thuộc tài khoản khác. Vui lòng đăng nhập bằng phương thức đã đăng ký.',
+      };
+    }
+    if (code === 'ACCOUNT_INACTIVE') {
+      return { message: 'Tài khoản của bạn hiện không ở trạng thái hoạt động.' };
+    }
+    if (code === 'OAUTH_CODE_INVALID') {
+      return {
+        message: 'Phiên đăng nhập Google không còn hợp lệ hoặc đã hết hạn. Vui lòng đăng nhập lại.',
+      };
+    }
+    if (code === 'OAUTH_STATE_INVALID') {
+      return {
+        message: 'Phiên xác thực Google không hợp lệ hoặc đã hết hạn. Vui lòng thử đăng nhập lại.',
+      };
+    }
+    if (code === 'OAUTH_REDIRECT_URI_INVALID' || code === 'COGNITO_OAUTH_CONFIG_ERROR') {
+      return {
+        message: 'Cấu hình đăng nhập Google chưa đồng bộ. Vui lòng liên hệ quản trị viên.',
+      };
+    }
+    if (code === 'COGNITO_OAUTH_FORBIDDEN') {
+      return {
+        message: 'Yêu cầu đăng nhập Google đã bị từ chối bởi chính sách bảo mật.',
+      };
+    }
+    if (code === 'COGNITO_UNAVAILABLE' || err.statusCode === 503) {
+      return {
+        message: 'Dịch vụ xác thực Google tạm thời gián đoạn. Vui lòng thử lại sau giây lát.',
+      };
+    }
+    return {
+      message: err.message || 'Không thể hoàn tất đăng nhập với Google. Vui lòng thử lại.',
+    };
+  }
+  return {
+    message: 'Không thể kết nối tới máy chủ để xác thực Google. Vui lòng thử lại.',
+  };
+};
+
 const GoogleIcon: React.FC = () => (
   <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
     <path
