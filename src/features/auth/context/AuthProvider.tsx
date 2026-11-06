@@ -68,9 +68,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
     catch { /* Local logout must complete even if the remote service is unavailable. */ }
     finally {
-      void logoutUrl;
       resetGoogleOAuthCoordinator();
       tokenStorage.notifyUnauthorized();
+      if (typeof window !== 'undefined' && logoutUrl && /^https?:\/\//i.test(logoutUrl)) {
+        try {
+          window.location.assign(logoutUrl);
+        } catch {
+          /* Ignore navigation errors in non-browser test environments */
+        }
+      }
     }
   }, []);
   const value = useMemo<AuthContextType>(() => ({ user, isAuthenticated, isLoading, login, logout, refreshUser }),
