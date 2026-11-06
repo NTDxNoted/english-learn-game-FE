@@ -13,7 +13,7 @@ import {
   KeyRound,
 } from 'lucide-react';
 import { loginSchema, type LoginFormData } from '../schemas/loginSchema';
-import { authApi, getCognitoRedirectUri } from '../api/authApi';
+import { authApi, getCognitoRedirectUri, sanitizeReturnTo } from '../api/authApi';
 import { useAuth } from '../hooks/useAuth';
 import { useToast } from '../../../app/providers/useToast';
 import { ApiError } from '../../../types/api.types';
@@ -163,14 +163,9 @@ export const LoginForm: React.FC = () => {
       authLogin(tokens, userProfile);
       toastSuccess('Đăng nhập thành công! Chào mừng bạn quay trở lại.', 'Xác thực tài khoản');
 
-      const redirectUrl = preferredRedirect ?? searchParams.get('redirect');
-      if (
-        redirectUrl &&
-        redirectUrl.startsWith('/') &&
-        !redirectUrl.startsWith('//') &&
-        !redirectUrl.startsWith('/login')
-      ) {
-        navigate(redirectUrl);
+      const safeRedirect = sanitizeReturnTo(preferredRedirect ?? searchParams.get('redirect'));
+      if (safeRedirect && (!safeRedirect.startsWith('/admin') || userProfile?.role === 'admin')) {
+        navigate(safeRedirect);
       } else if (userProfile?.role === 'admin') {
         navigate('/admin');
       } else {
