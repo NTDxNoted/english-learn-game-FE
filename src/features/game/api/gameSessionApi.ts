@@ -3,197 +3,145 @@ import type { ApiResponse } from '../../../types/api.types';
 import type {
   CreateSessionRequest,
   GameSessionData,
-  GameSessionWord,
   SubmitAttemptRequest,
   SubmitAttemptResponse,
   FinishSessionResponse,
   BackendGameSessionResponse,
   BackendGameSessionResumeResponse,
   BackendSubmitAttemptResponse,
+  BackendGameHistoryDetailResponse,
 } from '../types/gameSession.types';
 
+const mapResume = (be: BackendGameSessionResumeResponse): GameSessionData => {
+  // Use the rules frozen for this session instead of a global default.
+  if (!Number.isInteger(be.maxAttemptsPerWord) || be.maxAttemptsPerWord <= 0) {
+    throw new Error('Phiên chơi chưa có thông tin số lượt thử hợp lệ. Vui lòng tải lại phiên.');
+  }
+  const initialWordIndex = be.questions.findIndex((q) => q.vocabularyId === be.currentVocabularyId);
+  if (be.status === 'IN_PROGRESS' && initialWordIndex < 0) {
+    throw new Error('Không tìm thấy câu hỏi hiện tại trong phiên chơi. Vui lòng tải lại phiên.');
+  }
+  return {
+    sessionId: be.sessionId,
+    topicId: be.topicId,
+    mode: be.mode,
+    status: be.status,
+    totalWords: be.questionCount,
+    maxAttemptPerWord: be.maxAttemptsPerWord,
+    words: be.questions.map((q, idx) => ({
+      vocabId: q.vocabularyId,
+      orderNo: idx + 1,
+      meaningVi: q.meaningVi,
+      wordLength: q.scrambledLetters.length,
+      letters: q.scrambledLetters,
+      audioUrl: q.audioUrl ?? null,
+      hasAudio: Boolean(q.audioUrl?.trim()),
+      status: q.status,
+      attemptsUsed: q.attemptsUsed,
+      correctlyAnswered: q.correctlyAnswered,
+      remainingAttempts: q.vocabularyId === be.currentVocabularyId
+        ? be.remainingAttempts
+        : Math.max(0, be.maxAttemptsPerWord - q.attemptsUsed),
+    })),
+    initialWordIndex,
+    currentVocabularyId: be.currentVocabularyId,
+    remainingAttempts: be.remainingAttempts,
+    currentScore: be.score ?? 0,
+  };
+};
+
+const getSessionHistoryDetail = (sessionId: number): Promise<ApiResponse<BackendGameHistoryDetailResponse>> =>
+  http.get<BackendGameHistoryDetailResponse>(`/users/me/game-history/${sessionId}`);
+
+const getSessionResult = async (sessionId: number): Promise<ApiResponse<FinishSessionResponse>> => {
+  const res = await getSessionHistoryDetail(sessionId);
+  if (res.data.status !== 'COMPLETED' && res.data.status !== 'FAILED') {
+    throw new Error('Phiên chơi chưa có kết quả hoàn tất.');
+  }
+  return {
+    ...res,
+    data: { isWon: res.data.won, score: res.data.score, currentStreak: null },
+  };
+};
+
 export const gameSessionApi = {
-  /**
-   * Khôi phục phiên chơi đang dở dang trên backend (nếu có)
-   * GET /api/topics/{topicId}/game-sessions/active
-   */
-  getActiveSession: async (topicId: number): Promise<ApiResponse<GameSessionData | null>> => {
-    try {
-      const res = await http.get<BackendGameSessionResumeResponse>(
-        `/topics/${topicId}/game-sessions/active`,
-      );
-
-      const be = res.data;
-      if (!be || !be.sessionId) {
-        return {
-          success: true,
-          data: null,
-          message: 'Không có phiên chơi dở dang',
-          timestamp: new Date().toISOString(),
-        };
-      }
-
-      const words: GameSessionWord[] = (be.questions || []).map((q, idx) => ({
-        vocabId: q.vocabularyId,
-        orderNo: idx + 1,
-        meaningVi: q.meaningVi,
-        ipa: '',
-        wordLength: q.scrambledLetters ? q.scrambledLetters.length : 0,
-        letters: q.scrambledLetters || [],
-        hasAudio: false,
-      }));
-
-      // Tìm câu hỏi chưa giải xong đầu tiên để đặt con trỏ đúng vị trí
-      const firstUnresolvedIndex = (be.questions || []).findIndex(
-        (q) => !q.correctlyAnswered && (q.attemptsUsed ?? 0) < (be.maxAttemptsPerWord || 3),
-      );
-
-      const sessionData: GameSessionData = {
-        sessionId: be.sessionId,
-        topicId: be.topicId,
-        status: be.status as any,
-        totalWords: be.questionCount || words.length,
-        maxAttemptPerWord: be.maxAttemptsPerWord || 3,
-        sessionTimeoutMinutes: 30,
-        words,
-        initialWordIndex: firstUnresolvedIndex >= 0 ? firstUnresolvedIndex : 0,
-        currentScore: be.score || 0,
-      };
-
-      return {
-        success: true,
-        data: sessionData,
-        message: 'Khôi phục phiên chơi thành công',
-        timestamp: new Date().toISOString(),
-      };
-    } catch {
-      return {
-        success: true,
-        data: null,
-        message: 'Không có phiên chơi dở dang',
-        timestamp: new Date().toISOString(),
-      };
-    }
+  // Renew only this vocabulary's URL, without replacing the current board.
+  refreshAudioUrl: async (topicId: number, sessionId: number, vocabularyId: number): Promise<string | null> => {
+    const res = await http.get<BackendGameSessionResumeResponse | null>(
+      `/topics/${topicId}/game-sessions/active`,
+    );
+    if (res.data?.sessionId !== sessionId) return null;
+    return res.data.questions.find((question) => question.vocabularyId === vocabularyId)?.audioUrl ?? null;
   },
 
-  /**
-   * Tạo phiên chơi mới cho topic:
-   * POST /api/topics/{topicId}/game-sessions
-   */
+  getActiveSession: async (topicId: number): Promise<ApiResponse<GameSessionData | null>> => {
+    // Axios represents an empty 204 body as ''. Auth/network failures must reject.
+    const res = await http.get<BackendGameSessionResumeResponse | null | ''>(
+      `/topics/${topicId}/game-sessions/active`,
+    );
+    if (res.data == null || res.data === '') return { ...res, data: null };
+    return { ...res, data: mapResume(res.data) };
+  },
+
   createSession: async (data: CreateSessionRequest): Promise<ApiResponse<GameSessionData>> => {
-    const requestedMode = data.mode || 'FREE_PLAY';
-
+    let created: ApiResponse<BackendGameSessionResponse>;
     try {
-      const res = await http.post<BackendGameSessionResponse>(
+      created = await http.post<BackendGameSessionResponse>(
         `/topics/${data.topicId}/game-sessions`,
-        { mode: requestedMode },
+        { mode: data.mode ?? 'FREE_PLAY' },
       );
-
-      const beData = res.data;
-      const words: GameSessionWord[] = (beData.questions || []).map((q, idx) => ({
-        vocabId: q.vocabularyId,
-        orderNo: idx + 1,
-        meaningVi: q.meaningVi,
-        ipa: '',
-        wordLength: q.scrambledLetters ? q.scrambledLetters.length : 0,
-        letters: q.scrambledLetters || [],
-        hasAudio: false,
-      }));
-
-      const sessionData: GameSessionData = {
-        sessionId: beData.sessionId,
-        topicId: beData.topicId,
-        status: beData.status as any,
-        totalWords: beData.totalQuestions || words.length,
-        maxAttemptPerWord: 3,
-        sessionTimeoutMinutes: 30,
-        words,
-        initialWordIndex: 0,
-        currentScore: 0,
-      };
-
-      return {
-        success: true,
-        data: sessionData,
-        message: res.message || 'Tạo phiên chơi thành công',
-        timestamp: res.timestamp || new Date().toISOString(),
-      };
-    } catch (err: any) {
-      // 1. Nếu đã có phiên chơi active trên topic này -> tự động resume phiên đó
-      if (err?.message?.includes('already exists') || err?.statusCode === 409) {
-        const activeRes = await gameSessionApi.getActiveSession(data.topicId);
-        if (activeRes.data) {
-          return activeRes as ApiResponse<GameSessionData>;
-        }
+    } catch (err: unknown) {
+      // Concurrent starts may race. Resume only an actual server conflict.
+      if (typeof err === 'object' && err !== null && 'statusCode' in err && err.statusCode === 409) {
+        const active = await gameSessionApi.getActiveSession(data.topicId);
+        if (active.data) return { ...active, data: active.data };
       }
-
-      // 2. Nếu mode CHECKPOINT báo chưa học đủ từ vựng -> tự động chuyển sang FREE_PLAY
-      if (requestedMode === 'CHECKPOINT') {
-        return gameSessionApi.createSession({ topicId: data.topicId, mode: 'FREE_PLAY' });
-      }
-
       throw err;
     }
+
+    // POST omits rules/progress; hydrate the saved snapshot before allowing play.
+    const active = await gameSessionApi.getActiveSession(data.topicId);
+    if (!active.data || active.data.sessionId !== created.data.sessionId) {
+      throw new Error('Không thể đồng bộ phiên vừa tạo. Vui lòng tải lại phiên chơi.');
+    }
+    return { ...active, data: active.data };
   },
 
-  /**
-   * Hủy bỏ phiên chơi đang active trên Spring Boot:
-   * DELETE /api/topics/{topicId}/game-sessions/active
-   */
   cancelSession: (topicId: number): Promise<ApiResponse<null>> =>
     http.delete<null>(`/topics/${topicId}/game-sessions/active`),
 
-  /**
-   * Nộp lượt ghép từ để chấm điểm:
-   * POST /api/game-sessions/{sessionId}/attempts
-   */
   submitAttempt: async (
     sessionId: number,
     data: SubmitAttemptRequest,
   ): Promise<ApiResponse<SubmitAttemptResponse>> => {
     const lettersArray = Array.isArray(data.submittedLetters)
       ? data.submittedLetters
-      : data.submittedLetters.split('');
-
+      : Array.from(data.submittedLetters);
     const res = await http.post<BackendSubmitAttemptResponse>(
       `/game-sessions/${sessionId}/attempts`,
-      {
-        vocabularyId: data.vocabId,
-        submittedLetters: lettersArray,
-        timeMs: data.timeMs || 0,
-      },
+      { vocabularyId: data.vocabId, submittedLetters: lettersArray, timeMs: data.timeMs ?? 0 },
     );
-
     const be = res.data;
-    const mapped: SubmitAttemptResponse = {
-      isCorrect: be.correct,
-      attemptNo: be.attemptNumber,
-      attemptsLeft: be.remainingAttempts,
-      points: be.pointsEarned,
-      wordDone: be.wordCompleted,
-      correctWord: be.correctWord || null,
-      sessionDone: be.sessionCompleted,
-      sessionScore: be.totalScore,
-      sessionWon: be.sessionWon,
-      currentStreak: be.currentStreak,
-    };
-
     return {
-      success: true,
-      data: mapped,
-      message: res.message || (mapped.isCorrect ? 'Chính xác!' : 'Chưa đúng, hãy thử lại!'),
-      timestamp: res.timestamp || new Date().toISOString(),
+      ...res,
+      data: {
+        isCorrect: be.correct,
+        attemptNo: be.attemptNumber,
+        attemptsLeft: be.remainingAttempts,
+        points: be.pointsEarned,
+        wordDone: be.wordCompleted,
+        correctWord: be.correctWord,
+        sessionDone: be.sessionCompleted,
+        sessionScore: be.totalScore,
+        sessionWon: be.sessionWon,
+        currentStreak: be.currentStreak,
+        nextVocabularyId: be.nextVocabularyId,
+      },
     };
   },
 
-  /**
-   * Kết thúc phiên chơi (Dùng khi hiển thị kết quả)
-   */
-  finishSession: (_sessionId: number): Promise<ApiResponse<FinishSessionResponse>> =>
-    Promise.resolve({
-      success: true,
-      data: { isWon: true, score: 100, currentStreak: 1 },
-      message: 'Phiên chơi hoàn thành',
-      timestamp: new Date().toISOString(),
-    }),
+  getSessionHistoryDetail,
+  getSessionResult,
+  // Attempts finish games in BE. This compatibility alias only reads the result.
+  finishSession: getSessionResult,
 };

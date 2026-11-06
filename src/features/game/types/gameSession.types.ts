@@ -1,38 +1,35 @@
-export type SessionStatus = 'playing' | 'finished' | 'cancelled' | 'expired' | 'PLAYING' | 'COMPLETED' | 'ABANDONED';
-
+export type SessionStatus = 'IN_PROGRESS' | 'COMPLETED' | 'FAILED' | 'ABANDONED' | 'EXPIRED';
 export type GameMode = 'CHECKPOINT' | 'FREE_PLAY' | 'REVIEW';
 
 export interface BackendGameQuestion {
+  audioUrl?: string | null;
   vocabularyId: number;
   meaningVi: string;
   scrambledLetters: string[];
 }
 
-export interface BackendGameResumeQuestion {
-  vocabularyId: number;
-  meaningVi: string;
-  scrambledLetters: string[];
+export interface BackendGameResumeQuestion extends BackendGameQuestion {
   topicPosition?: number;
-  status?: string;
-  attemptsUsed?: number;
-  correctlyAnswered?: boolean;
+  status: string;
+  attemptsUsed: number;
+  correctlyAnswered: boolean;
 }
 
 export interface BackendGameSessionResumeResponse {
   sessionId: number;
   topicId: number;
   topicName?: string;
-  mode?: GameMode;
-  status: string;
+  mode: GameMode;
+  status: SessionStatus;
   batchStartPosition?: number;
   batchEndPosition?: number;
-  questionCount?: number;
-  score?: number;
-  resolvedQuestions?: number;
-  currentVocabularyId?: number;
-  maxAttemptsPerWord?: number;
-  currentAttemptsUsed?: number;
-  remainingAttempts?: number;
+  questionCount: number;
+  score: number | null;
+  resolvedQuestions: number;
+  currentVocabularyId: number | null;
+  maxAttemptsPerWord: number;
+  currentAttemptsUsed: number;
+  remainingAttempts: number;
   startedAt?: string;
   questions: BackendGameResumeQuestion[];
 }
@@ -42,7 +39,7 @@ export interface BackendGameSessionResponse {
   topicId: number;
   topicName: string;
   mode: GameMode;
-  status: string;
+  status: SessionStatus;
   batchStartPosition?: number;
   batchEndPosition?: number;
   totalQuestions: number;
@@ -58,15 +55,32 @@ export interface BackendSubmitAttemptResponse {
   remainingAttempts: number;
   wordCompleted: boolean;
   sessionCompleted: boolean;
-  sessionWon?: boolean | null;
+  sessionWon: boolean | null;
   pointsEarned: number;
   totalScore: number;
-  nextVocabularyId?: number | null;
-  correctWord?: string | null;
-  currentStreak?: number | null;
+  nextVocabularyId: number | null;
+  correctWord: string | null;
+  currentStreak: number | null;
+}
+
+export interface BackendGameHistoryDetailResponse {
+  sessionId: number;
+  topicId: number;
+  topicName: string;
+  mode: GameMode;
+  status: SessionStatus;
+  score: number | null;
+  won: boolean;
+  startedAt: string;
+  endedAt: string | null;
+  maxAttemptsPerWord: number | null;
+  questionCount: number;
+  historyComplete: boolean;
+  questions: unknown[];
 }
 
 export interface GameSessionWord {
+  audioUrl?: string | null;
   vocabId: number;
   orderNo: number;
   meaningVi: string;
@@ -74,6 +88,10 @@ export interface GameSessionWord {
   wordLength: number;
   letters: string[];
   hasAudio?: boolean;
+  status: string;
+  attemptsUsed: number;
+  remainingAttempts: number;
+  correctlyAnswered: boolean;
 }
 
 export interface CreateSessionRequest {
@@ -84,13 +102,15 @@ export interface CreateSessionRequest {
 export interface GameSessionData {
   sessionId: number;
   topicId: number;
+  mode: GameMode;
   status: SessionStatus;
   totalWords: number;
   maxAttemptPerWord: number;
-  sessionTimeoutMinutes: number;
   words: GameSessionWord[];
-  initialWordIndex?: number;
-  currentScore?: number;
+  initialWordIndex: number;
+  currentVocabularyId: number | null;
+  remainingAttempts: number;
+  currentScore: number;
 }
 
 export interface SubmitAttemptRequest {
@@ -106,17 +126,15 @@ export interface SubmitAttemptResponse {
   points: number;
   wordDone: boolean;
   correctWord: string | null;
-  wordsDone?: number;
-  totalWords?: number;
   sessionDone: boolean;
   sessionScore: number;
-  sessionWon?: boolean | null;
-  currentStreak?: number | null;
+  sessionWon: boolean | null;
+  currentStreak: number | null;
+  nextVocabularyId: number | null;
 }
 
 export interface FinishSessionResponse {
   isWon: boolean;
-  score: number;
-  currentStreak: number;
-  weeklyScore?: number;
+  score: number | null;
+  currentStreak: number | null;
 }
