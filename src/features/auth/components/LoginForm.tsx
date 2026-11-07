@@ -262,18 +262,26 @@ export const LoginForm: React.FC = () => {
     void runOAuthCallback();
   }, [completeAuthenticatedSession, searchParams, toastError]);
 
-  const handleGoogleLogin = () => {
+  const handleGoogleLogin = async () => {
     if (isSubmitting || isGoogleLoading) return;
     setGeneralError(null);
     setIsLocked(false);
+    setIsRateLimited(false);
     setIsGoogleLoading(true);
+    tokenStorage.notifyUnauthorized();
 
-    const redirectUri = getCognitoRedirectUri();
-    const redirectTarget = searchParams.get('redirect') || undefined;
-    const authorizeUrl = authApi.getGoogleAuthorizeUrl(redirectUri, redirectTarget);
-
-    if (typeof window !== 'undefined') {
-      window.location.assign(authorizeUrl);
+    try {
+      const redirectTarget = searchParams.get('redirect');
+      const authorizeUrl = await authApi.startGoogleLogin(redirectTarget);
+      if (typeof window !== 'undefined') {
+        window.location.assign(authorizeUrl);
+      }
+    } catch (err: unknown) {
+      setIsGoogleLoading(false);
+      const resolved = resolveGoogleFlowError(err);
+      const message = resolved.message || 'Không thể khởi tạo đăng nhập Google.';
+      setGeneralError(message);
+      toastError(message, 'Lỗi đăng nhập Google');
     }
   };
 
