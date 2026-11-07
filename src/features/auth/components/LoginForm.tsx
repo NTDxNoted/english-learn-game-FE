@@ -316,8 +316,13 @@ export const LoginForm: React.FC = () => {
           return;
         }
 
-        if (code === 'TOO_MANY_REQUESTS') {
+        if (code === 'TOO_MANY_REQUESTS' || err.statusCode === 429) {
           setIsRateLimited(true);
+          return;
+        }
+
+        if (code === 'EMAIL_ALREADY_EXISTS' || err.statusCode === 409) {
+          setGeneralError('Email đã thuộc tài khoản khác. Vui lòng kiểm tra lại phương thức đăng nhập.');
           return;
         }
 
