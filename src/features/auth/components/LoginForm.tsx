@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
@@ -13,7 +13,11 @@ import {
   KeyRound,
 } from 'lucide-react';
 import { loginSchema, type LoginFormData } from '../schemas/loginSchema';
-import { authApi, getCognitoRedirectUri, sanitizeReturnTo } from '../api/authApi';
+import {
+  authApi,
+  clearGoogleOAuthTransaction,
+  sanitizeReturnTo,
+} from '../api/authApi';
 import { useAuth } from '../hooks/useAuth';
 import { useToast } from '../../../app/providers/useToast';
 import { ApiError } from '../../../types/api.types';
@@ -132,7 +136,6 @@ export const LoginForm: React.FC = () => {
     if (!initialOAuthError) return null;
     return formatOAuthProviderError(initialOAuthError, initialOAuthErrorDesc);
   });
-  const processedOAuthRef = useRef(false);
 
   const {
     register,
@@ -164,38 +167,18 @@ export const LoginForm: React.FC = () => {
     [authLogin, navigate, searchParams, toastSuccess],
   );
 
-  const completeAuthenticatedSession = useCallback(
-    async (tokens: AuthTokens, preferredRedirect?: string | null) => {
-      const syncRes = await authApi.syncUser(tokens.accessToken);
-      const userProfile: UserProfile = syncRes.data;
-      if (userProfile.status === 'BLOCKED') {
-        throw new ApiError({ message: 'Tài khoản của bạn đã bị khóa.', errorCode: 'ACCOUNT_BLOCKED' }, 403);
-      }
-      if (userProfile.status !== 'ACTIVE') {
-        throw new ApiError({ message: 'Tài khoản không hoạt động.', errorCode: 'ACCOUNT_INACTIVE' }, 403);
-      }
-      commitAuthenticatedSession(tokens, userProfile, preferredRedirect);
-    },
-    [commitAuthenticatedSession],
-  );
-
-  // Xử lý callback khi quay về từ Google OAuth (?code=... hoặc #access_token=... hoặc ?error=...)
+  // Xử lý callback khi quay về từ Google OAuth (/callback?code=...&state=... hoặc ?error=...)
   useEffect(() => {
-    if (processedOAuthRef.current) return;
-
     const oauthError = searchParams.get('error');
     const oauthErrorDesc = searchParams.get('error_description');
     const oauthCode = searchParams.get('code');
     const oauthState = searchParams.get('state');
-    const hashString = typeof window !== 'undefined' ? window.location.hash.replace(/^#/, '') : '';
-    const hashParams = new URLSearchParams(hashString);
-    const hashAccessToken = hashParams.get('access_token');
 
-    if (!oauthError && !oauthCode && !hashAccessToken) {
+    if (!oauthError && !oauthCode) {
       return;
     }
 
-    processedOAuthRef.current = true;
+    let cancelled = false;
 
     const cleanUrl = () => {
       if (typeof window !== 'undefined' && window.history?.replaceState) {
@@ -205,10 +188,8 @@ export const LoginForm: React.FC = () => {
 
     if (oauthError) {
       cleanUrl();
-      const message =
-        oauthError === 'access_denied'
-          ? 'Bạn đã hủy đăng nhập bằng Google.'
-          : oauthErrorDesc || 'Đăng nhập bằng Google không thành công. Vui lòng thử lại.';
+      clearGoogleOAuthTransaction();
+      const message = formatOAuthProviderError(oauthError, oauthErrorDesc);
       toastError(message, 'Đăng nhập Google');
       return;
     }
@@ -217,50 +198,43 @@ export const LoginForm: React.FC = () => {
       setIsGoogleLoading(true);
       setGeneralError(null);
       setIsLocked(false);
+      setIsRateLimited(false);
       tokenStorage.notifyUnauthorized();
+      cleanUrl();
 
       try {
-        let tokens: AuthTokens;
-        if (oauthCode) {
-          const redirectUri = getCognitoRedirectUri();
-          const exchangeRes = await authApi.exchangeGoogleCode({
-            code: oauthCode,
-            redirectUri,
-          });
-          tokens = exchangeRes.data;
-        } else {
-          tokens = {
-            accessToken: hashAccessToken!,
-            refreshToken: hashParams.get('refresh_token') || undefined,
-            idToken: hashParams.get('id_token') || undefined,
-            tokenType: hashParams.get('token_type') || 'Bearer',
-            expiresIn: Number(hashParams.get('expires_in')) || 3600,
-          };
-        }
-
-        cleanUrl();
-        const redirectTarget = oauthState || hashParams.get('state') || searchParams.get('redirect');
-        await completeAuthenticatedSession(tokens, redirectTarget);
+        const result = await authApi.completeGoogleLoginOnce(oauthCode!, oauthState);
+        if (cancelled) return;
+        commitAuthenticatedSession(result.tokens, result.profile, result.returnTo);
       } catch (err: unknown) {
-        cleanUrl();
+        if (cancelled) return;
         tokenStorage.notifyUnauthorized();
-        if (err instanceof ApiError && err.errorCode === 'ACCOUNT_BLOCKED') {
+        const resolved = resolveGoogleFlowError(err);
+        if (resolved.locked) {
           setIsLocked(true);
           return;
         }
-        const message =
-          err instanceof ApiError
-            ? err.message
-            : 'Không thể hoàn tất đăng nhập với Google. Vui lòng thử lại.';
-        setGeneralError(message);
-        toastError(message, 'Lỗi đăng nhập Google');
+        if (resolved.rateLimited) {
+          setIsRateLimited(true);
+          return;
+        }
+        if (resolved.message) {
+          setGeneralError(resolved.message);
+          toastError(resolved.message, 'Lỗi đăng nhập Google');
+        }
       } finally {
-        setIsGoogleLoading(false);
+        if (!cancelled) {
+          setIsGoogleLoading(false);
+        }
       }
     };
 
     void runOAuthCallback();
-  }, [completeAuthenticatedSession, searchParams, toastError]);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [commitAuthenticatedSession, searchParams, toastError]);
 
   const handleGoogleLogin = async () => {
     if (isSubmitting || isGoogleLoading) return;
@@ -301,8 +275,20 @@ export const LoginForm: React.FC = () => {
         password: data.password,
       });
 
-      // 2. Lưu token, gọi /api/auth/sync và điều hướng
-      await completeAuthenticatedSession(response.data);
+      const tokens = response.data;
+
+      // 2. Đồng bộ bằng accessToken tạm trước khi commit phiên vào tokenStorage
+      const syncRes = await authApi.syncUser(tokens.accessToken);
+      const userProfile: UserProfile = syncRes.data;
+      if (userProfile.status === 'BLOCKED') {
+        throw new ApiError({ message: 'Tài khoản của bạn đã bị khóa.', errorCode: 'ACCOUNT_BLOCKED' }, 403);
+      }
+      if (userProfile.status !== 'ACTIVE') {
+        throw new ApiError({ message: 'Tài khoản không hoạt động.', errorCode: 'ACCOUNT_INACTIVE' }, 403);
+      }
+
+      // 3. Chỉ lưu token và thiết lập AuthContext sau khi Sync trả ACTIVE
+      commitAuthenticatedSession(tokens, userProfile);
     } catch (err: unknown) {
       tokenStorage.notifyUnauthorized();
       if (err instanceof ApiError) {
