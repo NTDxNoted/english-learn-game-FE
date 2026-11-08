@@ -107,16 +107,22 @@ it('renders Google sign-in button and removes the Cognito footer note on LoginPa
   expect(await screen.findByRole('button', { name: 'Tiếp tục với Google' })).toBeTruthy();
   expect(screen.queryByText(/Xác thực bảo mật qua AWS Cognito User Pool/i)).toBeNull();
 });
-it('exchanges Google OAuth code, syncs user profile, and navigates to topics', async () => {
+it('exchanges Google OAuth code with PKCE + state, syncs temporary token, and navigates to topics', async () => {
   const learnerProfile = { ...profile, role: 'learner' as const };
-  const exchangeSpy = vi.spyOn(authApi, 'exchangeGoogleCode').mockResolvedValue(dto(tokens));
+  saveGoogleOAuthTransaction({
+    state: 'state_valid_123',
+    codeVerifier: validVerifier,
+    redirectUri: 'http://localhost:3000/callback',
+    createdAt: Date.now(),
+  });
+  const exchangeSpy = vi.spyOn(authApi, 'loginWithGoogle').mockResolvedValue(dto(tokens));
   const syncSpy = vi.spyOn(authApi, 'syncUser').mockResolvedValue(dto(learnerProfile));
 
   render(
     <AuthProvider>
-      <MemoryRouter initialEntries={['/login?code=google_oauth_code_123']}>
+      <MemoryRouter initialEntries={['/callback?code=google_oauth_code_123&state=state_valid_123']}>
         <Routes>
-          <Route path="/login" element={<LoginForm />} />
+          <Route path="/callback" element={<LoginForm />} />
           <Route path="/topics" element={<p>LEARNER ROUTE</p>} />
         </Routes>
       </MemoryRouter>
@@ -124,9 +130,11 @@ it('exchanges Google OAuth code, syncs user profile, and navigates to topics', a
   );
 
   expect(await screen.findByText('LEARNER ROUTE')).toBeTruthy();
-  expect(exchangeSpy).toHaveBeenCalledWith(
-    expect.objectContaining({ code: 'google_oauth_code_123' }),
-  );
-  expect(syncSpy).toHaveBeenCalledTimes(1);
+  expect(exchangeSpy).toHaveBeenCalledWith({
+    code: 'google_oauth_code_123',
+    redirectUri: 'http://localhost:3000/callback',
+    codeVerifier: validVerifier,
+  });
+  expect(tokenStorage.getAccessToken()).toBe('access');
   expect(toast.success).toHaveBeenCalledTimes(1);
 });
