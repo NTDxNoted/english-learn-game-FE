@@ -80,7 +80,7 @@ export const HomePage: React.FC = () => {
   const navigate = useNavigate();
 
   return (
-    <div className="home-container" style={{ paddingBottom: '4rem' }}>
+    <div className="home-container ui-home-page" style={{ paddingBottom: '4rem' }}>
       {/* Hero Section */}
       <section className="hero-grid">
         {/* Left Column: Hero Copy */}
@@ -101,7 +101,7 @@ export const HomePage: React.FC = () => {
             AI), chơi vui và tiến bộ mỗi ngày cùng hệ thống Signly.
           </p>
 
-          <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', minWidth: 0 }}>
             <button
               type="button"
               onClick={() => navigate('/topics')}
@@ -138,7 +138,7 @@ export const HomePage: React.FC = () => {
             </div>
 
             <div className="floating-pill-bottom">
-              <Lightbulb size={16} color="#ffe293" />
+              <Lightbulb size={16} color="var(--color-pastel-yellow-border)" />
               <span>Học bằng phản xạ tự nhiên</span>
             </div>
           </div>
@@ -159,7 +159,7 @@ export const HomePage: React.FC = () => {
         <div
           style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 240px), 1fr))',
             gap: '1.5rem',
           }}
         >
@@ -167,7 +167,7 @@ export const HomePage: React.FC = () => {
             className="card-pastel bg-pastel-lavender"
             style={{ padding: '1.75rem', borderRadius: '24px', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}
           >
-            <div style={{ width: '48px', height: '48px', borderRadius: '14px', backgroundColor: '#ffffff', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-brand-primary)' }}>
+            <div style={{ width: '48px', height: '48px', borderRadius: '14px', backgroundColor: 'var(--color-bg-white)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-brand-primary)' }}>
               <Camera size={26} />
             </div>
             <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '1.2rem', fontWeight: 800, color: 'var(--color-brand-primary)' }}>
@@ -182,7 +182,7 @@ export const HomePage: React.FC = () => {
             className="card-pastel bg-pastel-mint"
             style={{ padding: '1.75rem', borderRadius: '24px', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}
           >
-            <div style={{ width: '48px', height: '48px', borderRadius: '14px', backgroundColor: '#ffffff', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#1f7a55' }}>
+            <div style={{ width: '48px', height: '48px', borderRadius: '14px', backgroundColor: 'var(--color-bg-white)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-pastel-mint-text)' }}>
               <ShieldCheck size={26} />
             </div>
             <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '1.2rem', fontWeight: 800, color: 'var(--color-brand-primary)' }}>
@@ -197,7 +197,7 @@ export const HomePage: React.FC = () => {
             className="card-pastel bg-pastel-yellow"
             style={{ padding: '1.75rem', borderRadius: '24px', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}
           >
-            <div style={{ width: '48px', height: '48px', borderRadius: '14px', backgroundColor: '#ffffff', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#b27715' }}>
+            <div style={{ width: '48px', height: '48px', borderRadius: '14px', backgroundColor: 'var(--color-bg-white)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-pastel-yellow-text)' }}>
               <BookOpen size={26} />
             </div>
             <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '1.2rem', fontWeight: 800, color: 'var(--color-brand-primary)' }}>
@@ -212,7 +212,7 @@ export const HomePage: React.FC = () => {
             className="card-pastel bg-pastel-peach"
             style={{ padding: '1.75rem', borderRadius: '24px', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}
           >
-            <div style={{ width: '48px', height: '48px', borderRadius: '14px', backgroundColor: '#ffffff', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#b04a32' }}>
+            <div style={{ width: '48px', height: '48px', borderRadius: '14px', backgroundColor: 'var(--color-bg-white)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-pastel-peach-text)' }}>
               <MousePointer size={26} />
             </div>
             <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '1.2rem', fontWeight: 800, color: 'var(--color-brand-primary)' }}>
