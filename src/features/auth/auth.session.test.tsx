@@ -7,7 +7,15 @@ import { AuthProvider } from './context/AuthProvider';
 import { LoginForm } from './components/LoginForm';
 import { LoginPage } from './pages/LoginPage';
 import { useAuth } from './hooks/useAuth';
-import { authApi } from './api/authApi';
+import {
+  authApi,
+  clearGoogleOAuthTransaction,
+  computeCodeChallengeS256,
+  generateRandomBase64Url,
+  readGoogleOAuthTransaction,
+  resetGoogleOAuthCoordinator,
+  saveGoogleOAuthTransaction,
+} from './api/authApi';
 import { tokenStorage } from '../../lib/tokenStorage';
 import { queryClient } from '../../app/providers/queryClient';
 import { ApiError } from '../../types/api.types';
@@ -16,6 +24,7 @@ const toast = vi.hoisted(() => ({ success: vi.fn(), error: vi.fn() }));
 vi.mock('../../app/providers/useToast', () => ({ useToast: () => toast }));
 const profile = { id: 1, email: 'admin@example.test', displayName: 'Admin', role: 'admin' as const, status: 'ACTIVE' as const };
 const tokens = { accessToken: 'access', refreshToken: 'refresh', tokenType: 'Bearer', expiresIn: 3600 };
+const validVerifier = 'a'.repeat(43);
 function dto<T>(data: T) { return { success: true, data, message: 'OK', timestamp: '' }; }
 function form() {
   return render(<AuthProvider><MemoryRouter initialEntries={['/login']}><Routes><Route path="/login" element={<LoginForm />} /><Route path="/admin" element={<p>ADMIN ROUTE</p>} /><Route path="/topics" element={<p>LEARNER ROUTE</p>} /></Routes></MemoryRouter></AuthProvider>);
@@ -29,8 +38,20 @@ function Probe() {
   const { user, isAuthenticated } = useAuth();
   return <p>{isAuthenticated ? user?.role : 'ANONYMOUS'}</p>;
 }
-beforeEach(() => { tokenStorage.clearTokens(); queryClient.clear(); vi.clearAllMocks(); });
-afterEach(() => { cleanup(); vi.restoreAllMocks(); queryClient.clear(); });
+beforeEach(() => {
+  tokenStorage.clearTokens();
+  clearGoogleOAuthTransaction();
+  resetGoogleOAuthCoordinator();
+  queryClient.clear();
+  vi.clearAllMocks();
+});
+afterEach(() => {
+  cleanup();
+  clearGoogleOAuthTransaction();
+  resetGoogleOAuthCoordinator();
+  vi.restoreAllMocks();
+  queryClient.clear();
+});
 
 it('enters Admin only after successful sync returns an active profile', async () => {
   vi.spyOn(authApi, 'login').mockResolvedValue(dto(tokens));
