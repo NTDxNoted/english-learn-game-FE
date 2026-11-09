@@ -135,6 +135,7 @@ it('exchanges Google OAuth code with PKCE + state, syncs temporary token, and na
     redirectUri: 'http://localhost:3000/callback',
     codeVerifier: validVerifier,
   });
+  expect(syncSpy).toHaveBeenCalledWith('access');
   expect(tokenStorage.getAccessToken()).toBe('access');
   expect(toast.success).toHaveBeenCalledTimes(1);
 });
