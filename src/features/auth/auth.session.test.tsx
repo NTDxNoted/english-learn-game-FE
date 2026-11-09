@@ -139,3 +139,28 @@ it('exchanges Google OAuth code with PKCE + state, syncs temporary token, and na
   expect(tokenStorage.getAccessToken()).toBe('access');
   expect(toast.success).toHaveBeenCalledTimes(1);
 });
+
+it('rejects Google OAuth callback when state does not match sessionStorage without calling backend', async () => {
+  saveGoogleOAuthTransaction({
+    state: 'expected_state_abc',
+    codeVerifier: validVerifier,
+    redirectUri: 'http://localhost:3000/callback',
+    createdAt: Date.now(),
+  });
+  const exchangeSpy = vi.spyOn(authApi, 'loginWithGoogle');
+
+  render(
+    <AuthProvider>
+      <MemoryRouter initialEntries={['/callback?code=google_oauth_code_123&state=wrong_state_xyz']}>
+        <Routes>
+          <Route path="/callback" element={<LoginForm />} />
+          <Route path="/topics" element={<p>LEARNER ROUTE</p>} />
+        </Routes>
+      </MemoryRouter>
+    </AuthProvider>,
+  );
+
+  expect(await screen.findByText(/Phiên xác thực Google không hợp lệ hoặc đã hết hạn/i)).toBeTruthy();
+  expect(exchangeSpy).not.toHaveBeenCalled();
+  expect(tokenStorage.hasAccessToken()).toBe(false);
+});
