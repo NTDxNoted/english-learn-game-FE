@@ -259,7 +259,7 @@ export const HomePage: React.FC = () => {
               totalWords={item.totalWords}
               completedWords={item.completedWords}
               index={i}
-              onClick={() => navigate(`/game/new?topicId=${item.id}`)}
+              onClick={() => navigate(`/topics?select=${item.id}`)}
             />
           ))}
         </div>
