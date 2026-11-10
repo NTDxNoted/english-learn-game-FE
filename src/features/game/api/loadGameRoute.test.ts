@@ -3,7 +3,7 @@ import { loadGameRoute } from './loadGameRoute';
 import { gameSessionApi } from './gameSessionApi';
 
 vi.mock('./gameSessionApi', () => ({ gameSessionApi: {
-  getActiveSession: vi.fn(), createSession: vi.fn(), getSessionHistoryDetail: vi.fn(),
+  getActiveSession: vi.fn(), createSession: vi.fn(), cancelSession: vi.fn(), getSessionHistoryDetail: vi.fn(),
 } }));
 const envelope = <T,>(data: T) => ({ success: true, message: 'OK', timestamp: '2026-11-04T00:00:00Z', data });
 beforeEach(() => vi.resetAllMocks());
@@ -19,11 +19,23 @@ it('rejects an unsupported mode before any request', async () => {
   expect(gameSessionApi.getActiveSession).not.toHaveBeenCalled();
 });
 
-it('resumes the existing session rather than replacing its mode', async () => {
-  const active = { sessionId: 12, topicId: 2, mode: 'REVIEW' };
+it('resumes the existing session when its mode matches the requested mode', async () => {
+  const active = { sessionId: 12, topicId: 2, mode: 'CHECKPOINT' };
   vi.mocked(gameSessionApi.getActiveSession).mockResolvedValue(envelope(active) as never);
   expect(await loadGameRoute('new', '2', 'CHECKPOINT')).toEqual({ kind: 'session', session: active });
+  expect(gameSessionApi.cancelSession).not.toHaveBeenCalled();
   expect(gameSessionApi.createSession).not.toHaveBeenCalled();
+});
+
+it('cancels a mismatched active session and creates the requested mode (e.g. CHECKPOINT after learning)', async () => {
+  const active = { sessionId: 12, topicId: 2, mode: 'FREE_PLAY' };
+  const created = { sessionId: 15, topicId: 2, mode: 'CHECKPOINT' };
+  vi.mocked(gameSessionApi.getActiveSession).mockResolvedValue(envelope(active) as never);
+  vi.mocked(gameSessionApi.cancelSession).mockResolvedValue(envelope(null));
+  vi.mocked(gameSessionApi.createSession).mockResolvedValue(envelope(created) as never);
+  expect(await loadGameRoute('new', '2', 'CHECKPOINT')).toEqual({ kind: 'session', session: created });
+  expect(gameSessionApi.cancelSession).toHaveBeenCalledWith(2);
+  expect(gameSessionApi.createSession).toHaveBeenCalledWith({ topicId: 2, mode: 'CHECKPOINT' });
 });
 
 it('creates exactly the requested mode when no active session exists', async () => {
