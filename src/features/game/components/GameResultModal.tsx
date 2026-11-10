@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { Trophy, Flame, RotateCcw, ArrowRight, Loader2 } from 'lucide-react';
+import { Trophy, Flame, RotateCcw, ArrowRight, Loader2, BookOpen } from 'lucide-react';
 import type { FinishSessionResponse } from '../types/gameSession.types';
 
 interface GameResultModalProps {
@@ -10,10 +10,11 @@ interface GameResultModalProps {
   isRestarting?: boolean;
   onRetry?: () => void;
   onPlayAgain: () => void;
+  onLearnNextBatch?: () => void;
   onBackToTopics: () => void;
 }
 
-export function GameResultModal({ isOpen, result, isLoading = false, error, isRestarting = false, onRetry, onPlayAgain, onBackToTopics }: GameResultModalProps) {
+export function GameResultModal({ isOpen, result, isLoading = false, error, isRestarting = false, onRetry, onPlayAgain, onLearnNextBatch, onBackToTopics }: GameResultModalProps) {
   const panel = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (!isOpen) return;
@@ -46,7 +47,12 @@ export function GameResultModal({ isOpen, result, isLoading = false, error, isRe
       {error && <p role="alert" style={{ marginBottom: '1rem', color: 'var(--color-error)' }}>{error}</p>}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
         {!result && onRetry && <button type="button" className="btn-3d" disabled={isLoading} onClick={onRetry}>{isLoading ? 'Đang đồng bộ...' : 'Tải lại kết quả'}</button>}
-        {result && <button type="button" className="btn-3d" disabled={isRestarting || isLoading} aria-busy={isRestarting} onClick={onPlayAgain}>{isRestarting ? <Loader2 size={18} className="ui-spinner" aria-hidden="true" /> : <RotateCcw size={18} aria-hidden="true" />} {isRestarting ? 'Đang tạo phiên mới...' : 'Chơi lại chủ đề này'}</button>}
+        {result && onLearnNextBatch && (
+          <button type="button" className="btn-3d" disabled={isRestarting || isLoading} onClick={onLearnNextBatch}>
+            <BookOpen size={18} aria-hidden="true" /> {result.isWon ? 'Học tiếp 5 từ tiếp theo' : 'Quay lại ôn tập 5 từ này'}
+          </button>
+        )}
+        {result && <button type="button" className={onLearnNextBatch ? 'btn-outline' : 'btn-3d'} disabled={isRestarting || isLoading} aria-busy={isRestarting} onClick={onPlayAgain}>{isRestarting ? <Loader2 size={18} className="ui-spinner" aria-hidden="true" /> : <RotateCcw size={18} aria-hidden="true" />} {isRestarting ? 'Đang tạo phiên mới...' : 'Chơi lại chủ đề này'}</button>}
         <button type="button" className="btn-outline" disabled={isRestarting} onClick={onBackToTopics}>Về danh sách chủ đề <ArrowRight size={18} aria-hidden="true" /></button>
       </div>
     </div>
