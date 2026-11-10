@@ -1,4 +1,4 @@
-﻿import { createBrowserRouter, Navigate } from 'react-router-dom';
+import { createBrowserRouter, Navigate } from 'react-router-dom';
 import { AppLayout } from '../components/layout/AppLayout';
 import { HomePage } from '../pages/HomePage';
 import { NotFoundPage } from '../pages/NotFoundPage';
@@ -10,6 +10,7 @@ import { ForgotPasswordPage } from '../features/auth/pages/ForgotPasswordPage';
 import { ResetPasswordPage } from '../features/auth/pages/ResetPasswordPage';
 import { ProtectedRoute } from '../features/auth/components/ProtectedRoute';
 import { TopicListPage } from '../features/topics/pages/TopicListPage';
+import { TopicLearningPage } from '../features/topics/pages/TopicLearningPage';
 import { GameSessionPage } from '../features/game/pages/GameSessionPage';
 import { ProgressPage } from '../features/progress/pages/ProgressPage';
 import { LeaderboardPage } from '../features/leaderboard/pages/LeaderboardPage';
@@ -38,6 +39,14 @@ export const router = createBrowserRouter([
         element: (
           <ProtectedRoute>
             <TopicListPage />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: 'topics/:topicId/learn',
+        element: (
+          <ProtectedRoute>
+            <TopicLearningPage />
           </ProtectedRoute>
         ),
       },
