@@ -1,8 +1,8 @@
 /**
  * Định nghĩa chuẩn các cấu trúc API response theo hợp đồng Backend:
- * - Quy ước: JSON dùng camelCase, base path: /api/v1
+ * - Quy ước: JSON dùng camelCase, base path: /api
  * - Xác thực: AWS Cognito User Pool thông qua Backend bridge (Frontend KHÔNG gọi trực tiếp AWS SDK)
- * - Múi giờ chuẩn: ISO-8601 kèm múi giờ (Asia/Ho_Chi_Minh)
+ * - Múi giờ chuẩn: Audit: Instant; User: LocalDateTime cần quy ước timezone từ backend
  */
 
 export interface ApiResponse<T = unknown> {
@@ -41,7 +41,7 @@ export type CommonErrorCode =
   | 'UNAUTHORIZED'
   | 'TOKEN_EXPIRED'
   | 'FORBIDDEN'
-  | 'ACCOUNT_LOCKED'
+  | 'ACCOUNT_BLOCKED'
   | 'NOT_FOUND'
   | 'CONFLICT'
   | 'INTERNAL_ERROR'

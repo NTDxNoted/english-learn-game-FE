@@ -123,7 +123,7 @@ export const VerifyRegisterForm: React.FC<VerifyRegisterFormProps> = ({
   };
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="auth-form" noValidate>
+    <form onSubmit={handleSubmit(onSubmit)} className="auth-form" noValidate aria-busy={isSubmitting}>
       {/* Thông báo lỗi từ server */}
       {serverError && (
         <div
@@ -152,7 +152,13 @@ export const VerifyRegisterForm: React.FC<VerifyRegisterFormProps> = ({
         </label>
         <input
           id="verify-email"
+          required
+          aria-invalid={!!errors.email}
+          aria-describedby={errors.email ? 'verify-email-error' : undefined}
           type="email"
+          inputMode="email"
+          autoCapitalize="none"
+          spellCheck={false}
           autoComplete="email"
           className="form-input"
           placeholder="learner@example.com"
@@ -160,7 +166,7 @@ export const VerifyRegisterForm: React.FC<VerifyRegisterFormProps> = ({
           style={errors.email ? { borderColor: 'var(--color-error)' } : undefined}
         />
         {errors.email && (
-          <span style={{ color: 'var(--color-error)', fontSize: '0.8rem', fontWeight: 600 }}>
+          <span id="verify-email-error" className="form-error" role="alert" style={{ color: 'var(--color-error)', fontSize: '0.8rem', fontWeight: 600 }}>
             {errors.email.message}
           </span>
         )}
@@ -173,6 +179,9 @@ export const VerifyRegisterForm: React.FC<VerifyRegisterFormProps> = ({
         </label>
         <input
           id="otp-code"
+          required
+          aria-invalid={!!errors.code}
+          aria-describedby={errors.code ? 'otp-code-error' : undefined}
           type="text"
           inputMode="numeric"
           maxLength={6}
@@ -189,7 +198,7 @@ export const VerifyRegisterForm: React.FC<VerifyRegisterFormProps> = ({
           {...register('code')}
         />
         {errors.code && (
-          <span style={{ color: 'var(--color-error)', fontSize: '0.8rem', fontWeight: 600 }}>
+          <span id="otp-code-error" className="form-error" role="alert" style={{ color: 'var(--color-error)', fontSize: '0.8rem', fontWeight: 600 }}>
             {errors.code.message}
           </span>
         )}
