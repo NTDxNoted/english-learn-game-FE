@@ -41,7 +41,7 @@ export const TopicCard: React.FC<TopicCardProps> = ({
 
   const hasProgress = typeof totalWords === 'number' && totalWords > 0;
   const progressPercent = hasProgress
-    ? Math.min(100, Math.round(((completedWords || 0) / totalWords) * 100))
+    ? Math.max(0, Math.min(100, Math.round(((completedWords || 0) / totalWords) * 100)))
     : 0;
 
   return (
@@ -55,9 +55,11 @@ export const TopicCard: React.FC<TopicCardProps> = ({
         flexDirection: 'column',
         justifyContent: 'space-between',
         minHeight: '210px',
+        minWidth: 0,
+        overflowWrap: 'anywhere',
       }}
     >
-      <div>
+      <div style={{ minWidth: 0, width: '100%' }}>
         <div className="card-icon-box" style={{ marginBottom: 0 }}>
           <Icon size={24} />
         </div>
@@ -82,24 +84,32 @@ export const TopicCard: React.FC<TopicCardProps> = ({
               }}
             >
               <span>Tiến độ</span>
-              <span>{completedWords || 0}/{totalWords} từ</span>
+              <span style={{ fontVariantNumeric: 'tabular-nums' }}>{completedWords || 0}/{totalWords} từ</span>
             </div>
             <div
+              role="progressbar"
+              aria-label={`Tiến độ chủ đề ${title}`}
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-valuenow={progressPercent}
+              aria-valuetext={`${completedWords || 0} trên ${totalWords} từ`}
               style={{
                 width: '100%',
                 height: '6px',
-                backgroundColor: 'rgba(50, 44, 130, 0.1)',
+                backgroundColor: 'var(--color-pastel-lavender-shadow)',
                 borderRadius: '9999px',
                 overflow: 'hidden',
               }}
             >
               <div
                 style={{
-                  width: `${progressPercent}%`,
+                  width: '100%',
                   height: '100%',
                   backgroundColor: 'var(--color-brand-primary)',
                   borderRadius: '9999px',
-                  transition: 'width 0.3s ease',
+                  transform: `scaleX(${progressPercent / 100})`,
+                  transformOrigin: 'left',
+                  transition: 'transform 180ms cubic-bezier(0.25, 1, 0.5, 1)',
                 }}
               />
             </div>
