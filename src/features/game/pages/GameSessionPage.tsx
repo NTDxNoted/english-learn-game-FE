@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, type CSSProperties } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useParams, useSearchParams, useNavigate } from 'react-router-dom';
 import { GameSessionHeader } from '../components/GameSessionHeader';
 import { WordClueCard } from '../components/WordClueCard';
@@ -11,454 +12,316 @@ import { CameraPreview } from '../input/components/CameraPreview';
 import { HandCursorOverlay } from '../input/components/HandCursorOverlay';
 import { useInputController } from '../input/hooks/useInputController';
 import { gameSessionApi } from '../api/gameSessionApi';
+import { loadGameRoute } from '../api/loadGameRoute';
+import { useVocabularyAudio } from '../hooks/useVocabularyAudio';
 import { useToast } from '../../../app/providers/useToast';
-import type { GameSessionData, GameSessionWord, FinishSessionResponse } from '../types/gameSession.types';
+import { useAuth } from '../../auth/hooks/useAuth';
+import { progressKeys, useMyStreak } from '../../progress/hooks/useMyStreak';
+import type { GameSessionData, GameSessionWord, FinishSessionResponse, SubmitAttemptResponse } from '../types/gameSession.types';
 import type { TileDropEvent } from '../input/controllers/InputController';
 
-// Dữ liệu mẫu dự phòng trường hợp Backend offline trong môi trường phát triển
-const FALLBACK_WORDS: GameSessionWord[] = [
-  { vocabId: 1, orderNo: 1, meaningVi: 'Con mèo', ipa: '/kæt/', wordLength: 3, letters: ['T', 'C', 'O', 'A'], hasAudio: true },
-  { vocabId: 2, orderNo: 2, meaningVi: 'Quả táo', ipa: '/ˈæp.əl/', wordLength: 5, letters: ['P', 'L', 'A', 'E', 'P'], hasAudio: true },
-  { vocabId: 3, orderNo: 3, meaningVi: 'Ngôi sao', ipa: '/stɑːr/', wordLength: 4, letters: ['A', 'S', 'T', 'R', 'E'], hasAudio: true },
-];
+const errorMessage = (error: unknown) => error instanceof Error ? error.message : 'Không thể kết nối máy chủ. Vui lòng thử lại.';
 
-interface PlacedSlotItem {
-  tileId: string;
-  letter: string;
-}
-
+interface PlacedSlotItem { tileId: string; letter: string }
 interface WordBoardProps {
-  sessionId: number;
+  session: GameSessionData;
   word: GameSessionWord;
-  maxAttempts: number;
   sessionScore: number;
-  onWordComplete: (earnedPoints: number) => void;
-  onWordExhausted: () => void;
-  onTileDropRegister: (handler: (drop: TileDropEvent) => void) => void;
+  isSyncing: boolean;
+  onAttempt: (attempt: SubmitAttemptResponse) => void;
+  onContinue: (attempt: SubmitAttemptResponse) => void;
+  onRecover: () => Promise<void>;
+  onPendingChange?: (pending: boolean) => void;
+  onTileDropRegister: (handler: ((drop: TileDropEvent) => void) | null) => void;
 }
 
-const WordBoard: React.FC<WordBoardProps> = ({
-  sessionId,
-  word,
-  maxAttempts,
-  sessionScore,
-  onWordComplete,
-  onWordExhausted,
-  onTileDropRegister,
-}) => {
+export function WordBoard({ session, word, sessionScore, isSyncing, onAttempt, onContinue, onRecover, onTileDropRegister, onPendingChange }: WordBoardProps) {
   const { success: toastSuccess, info: toastInfo } = useToast();
-  const [placedSlots, setPlacedSlots] = useState<(PlacedSlotItem | null)[]>(
-    () => Array(word.wordLength).fill(null),
-  );
-  const [usedTileIds, setUsedTileIds] = useState<Set<string>>(() => new Set());
-  const [selectedTile, setSelectedTile] = useState<{ id: string; letter: string } | null>(null);
-
-  const [attemptsLeft, setAttemptsLeft] = useState<number>(maxAttempts);
-  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+  const [placedSlots, setPlacedSlots] = useState<(PlacedSlotItem | null)[]>(() => Array(word.wordLength).fill(null));
+  const [attemptsLeft, setAttemptsLeft] = useState(word.remainingAttempts);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isTransitioning, setIsTransitioning] = useState(false);
+  const [needsSync, setNeedsSync] = useState(false);
   const [feedback, setFeedback] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
   const [statusFeedback, setStatusFeedback] = useState<'success' | 'error' | null>(null);
+  const busy = useRef(false);
+  const mounted = useRef(true);
+  const transitionTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isLocked = isSubmitting || isTransitioning || needsSync || isSyncing;
 
-  // Đặt lại trạng thái khi chuyển sang từ vựng mới
   useEffect(() => {
-    setPlacedSlots(Array(word.wordLength).fill(null));
-    setUsedTileIds(new Set());
-    setSelectedTile(null);
-    setAttemptsLeft(maxAttempts);
-    setFeedback(null);
-    setStatusFeedback(null);
-  }, [word.vocabId, word.wordLength, maxAttempts]);
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+      if (transitionTimer.current !== null) clearTimeout(transitionTimer.current);
+      onPendingChange?.(false);
+    };
+  }, [onPendingChange]);
 
-  // Tính toán kích thước kho chữ cái co giãn theo độ dài từ vựng (chống tràn layout)
-  const tileSizing = useMemo(() => {
-    const count = word.letters.length;
-    if (count <= 6) return { size: '66px', fontSize: '2.1rem', gap: '0.85rem' };
-    if (count <= 8) return { size: '56px', fontSize: '1.8rem', gap: '0.65rem' };
-    if (count <= 10) return { size: '48px', fontSize: '1.5rem', gap: '0.5rem' };
-    return { size: '42px', fontSize: '1.35rem', gap: '0.35rem' };
-  }, [word.letters.length]);
+  const refreshAudioUrl = useCallback(() => gameSessionApi.refreshAudioUrl(session.topicId, session.sessionId, word.vocabId), [session.topicId, session.sessionId, word.vocabId]);
+  const reportAudioError = useCallback((message: string) => toastInfo(message, 'Âm thanh'), [toastInfo]);
+  const { speak, isSpeaking } = useVocabularyAudio(`${session.sessionId}:${word.vocabId}`, word.audioUrl, refreshAudioUrl, reportAudioError);
 
-  const tilesContainerStyle = {
-    '--tile-size': tileSizing.size,
-    '--tile-font-size': tileSizing.fontSize,
-    '--tile-gap': tileSizing.gap,
-  } as React.CSSProperties;
-
-  // Phát âm từ vựng qua Web Speech API
-  const handleSpeak = useCallback((textToSpeak?: string) => {
-    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-      window.speechSynthesis.cancel();
-      const text = textToSpeak || word.meaningVi;
-      const isEnglish = /^[A-Za-z\s'-]+$/.test(text);
-      const utterance = new SpeechSynthesisUtterance(text);
-      utterance.lang = isEnglish ? 'en-US' : 'vi-VN';
-      utterance.rate = 0.85;
-      window.speechSynthesis.speak(utterance);
-    } else {
-      toastInfo('Trình duyệt chưa hỗ trợ phát âm tự động.', 'Âm thanh');
-    }
-  }, [word.meaningVi, toastInfo]);
-
-  // Đăng ký nhận sự kiện thả chữ từ Controller (chuột hoặc cử chỉ tay)
   useEffect(() => {
-    onTileDropRegister((drop: TileDropEvent) => {
-      setPlacedSlots((prev) => {
-        if (drop.slotIndex < 0 || drop.slotIndex >= prev.length || prev[drop.slotIndex] !== null) {
-          return prev;
-        }
-        const next = [...prev];
+    onTileDropRegister((drop) => {
+      if (isLocked || busy.current) return;
+      const tileIndex = word.letters.findIndex((letter, index) => `${word.vocabId}-${index}` === drop.tileId && letter === drop.letter);
+      if (tileIndex < 0) return;
+      setPlacedSlots((previous) => {
+        if (drop.slotIndex < 0 || drop.slotIndex >= previous.length || previous[drop.slotIndex] || previous.some((slot) => slot?.tileId === drop.tileId)) return previous;
+        const next = [...previous];
         next[drop.slotIndex] = { tileId: drop.tileId, letter: drop.letter };
         return next;
       });
-      setUsedTileIds((prev) => new Set([...prev, drop.tileId]));
       setStatusFeedback(null);
     });
-  }, [onTileDropRegister]);
+    return () => onTileDropRegister(null);
+  }, [onTileDropRegister, word, isLocked]);
 
   const handleTileClick = (id: string, letter: string) => {
-    if (usedTileIds.has(id)) return;
-    if (selectedTile?.id === id) {
-      setSelectedTile(null);
-      return;
-    }
-
-    const firstEmptyIndex = placedSlots.findIndex((s) => s === null);
-    if (firstEmptyIndex !== -1) {
-      setPlacedSlots((prev) => {
-        const next = [...prev];
-        next[firstEmptyIndex] = { tileId: id, letter };
-        return next;
-      });
-      setUsedTileIds((prev) => new Set([...prev, id]));
-      setStatusFeedback(null);
-    } else {
-      setSelectedTile({ id, letter });
-    }
-  };
-
-  const handleSlotClick = (index: number) => {
-    const item = placedSlots[index];
-    if (!item) return;
-
-    setPlacedSlots((prev) => {
-      const next = [...prev];
-      next[index] = null;
-      return next;
-    });
-
-    setUsedTileIds((prev) => {
-      const next = new Set(prev);
-      next.delete(item.tileId);
+    if (isLocked || busy.current) return;
+    setPlacedSlots((previous) => {
+      if (previous.some((slot) => slot?.tileId === id)) return previous;
+      const firstEmpty = previous.indexOf(null);
+      if (firstEmpty < 0) return previous;
+      const next = [...previous];
+      next[firstEmpty] = { tileId: id, letter };
       return next;
     });
     setStatusFeedback(null);
   };
-
+  const handleSlotClick = (index: number) => {
+    if (isLocked || busy.current) return;
+    setPlacedSlots((previous) => previous.map((slot, slotIndex) => slotIndex === index ? null : slot));
+    setStatusFeedback(null);
+  };
   const handleResetSlots = () => {
+    if (isLocked || busy.current) return;
     setPlacedSlots(Array(word.wordLength).fill(null));
-    setUsedTileIds(new Set());
-    setSelectedTile(null);
     setFeedback(null);
     setStatusFeedback(null);
   };
-
+  const isAllFilled = placedSlots.length === word.wordLength && placedSlots.every(Boolean);
   const handleConfirmWord = async () => {
-    if (isSubmitting) return;
-    const lettersArray = placedSlots.map((s) => s?.letter || '');
-    const submittedLetters = lettersArray.join('');
-    if (submittedLetters.length < word.wordLength) return;
-
+    if (isLocked || busy.current || !isAllFilled || attemptsLeft <= 0) return;
+    busy.current = true;
+    onPendingChange?.(true);
     setIsSubmitting(true);
     setFeedback(null);
-
+    let awaitingTransition = false;
     try {
-      const res = await gameSessionApi.submitAttempt(sessionId, {
-        vocabId: word.vocabId,
-        submittedLetters: lettersArray,
-      });
-
-      const data = res.data;
+      const { data } = await gameSessionApi.submitAttempt(session.sessionId, { vocabId: word.vocabId, submittedLetters: placedSlots.map((slot) => slot!.letter) });
+      if (!mounted.current) return;
+      setAttemptsLeft(data.attemptsLeft);
+      onAttempt(data);
+      setStatusFeedback(data.isCorrect ? 'success' : 'error');
       if (data.isCorrect) {
-        setStatusFeedback('success');
         setFeedback({ message: 'Chính xác! Bạn ghép từ rất chuẩn.', type: 'success' });
         toastSuccess(`Đúng rồi! +${data.points} điểm`, 'Tuyệt vời');
-        handleSpeak(data.correctWord || submittedLetters);
-        setTimeout(() => onWordComplete(data.points), 1200);
+        speak();
       } else {
-        setStatusFeedback('error');
-        setAttemptsLeft(data.attemptsLeft);
-        if (data.attemptsLeft > 0) {
-          setFeedback({
-            message: `Chưa chính xác! Bạn còn ${data.attemptsLeft} lượt thử nữa.`,
-            type: 'error',
-          });
-        } else {
-          setFeedback({
-            message: `Hết lượt thử! Đáp án đúng: ${data.correctWord || 'từ vựng này'}`,
-            type: 'error',
-          });
-          if (data.correctWord) {
-            handleSpeak(data.correctWord);
-          }
-          setTimeout(() => onWordExhausted(), 1800);
-        }
+        setFeedback({ message: data.wordDone || data.sessionDone
+          ? `Hết lượt thử!${data.correctWord ? ` Đáp án đúng: ${data.correctWord}` : ''}`
+          : `Chưa chính xác! Bạn còn ${data.attemptsLeft} lượt thử nữa.`, type: 'error' });
       }
-    } catch {
-      // Fallback tại chỗ nếu backend có độ trễ
-      const isMatch = submittedLetters.length === word.wordLength;
-      if (isMatch) {
-        setStatusFeedback('success');
-        setFeedback({ message: 'Chính xác!', type: 'success' });
-        handleSpeak(submittedLetters);
-        setTimeout(() => onWordComplete(10), 1200);
+      if (data.wordDone || data.sessionDone) {
+        awaitingTransition = true;
+        setIsTransitioning(true);
+        transitionTimer.current = setTimeout(() => { onPendingChange?.(false); onContinue(data); }, data.isCorrect ? 1200 : 1800);
       } else {
-        setStatusFeedback('error');
-        setAttemptsLeft((prev) => Math.max(0, prev - 1));
-        setFeedback({ message: 'Chưa chính xác, hãy thử lại nhé!', type: 'error' });
+        busy.current = false;
       }
+    } catch (error) {
+      if (!mounted.current) return;
+      // The server may have committed an attempt before a timeout. Read state before another POST.
+      setNeedsSync(true);
+      setStatusFeedback('error');
+      setFeedback({ message: `${errorMessage(error)} Hãy đồng bộ phiên trước khi tiếp tục.`, type: 'error' });
     } finally {
-      setIsSubmitting(false);
+      if (mounted.current) {
+        setIsSubmitting(false);
+        if (!awaitingTransition) onPendingChange?.(false);
+      }
     }
   };
+  const tileSize = word.letters.length <= 6 ? '66px' : word.letters.length <= 8 ? '56px' : '42px';
+  const tilesStyle = { '--tile-size': tileSize, '--tile-font-size': word.letters.length <= 6 ? '2.1rem' : '1.5rem', '--tile-gap': '0.5rem' } as CSSProperties;
 
-  const isAllFilled = useMemo(
-    () => Boolean(placedSlots.length === word.wordLength && placedSlots.every(Boolean)),
-    [word.wordLength, placedSlots],
-  );
-
-  const slotLetters = useMemo(
-    () => placedSlots.map((s) => s?.letter || null),
-    [placedSlots],
-  );
-
-  return (
-    <>
-      <WordClueCard
-        meaningVi={word.meaningVi}
-        ipa={word.ipa}
-        wordLength={word.wordLength}
-        onSpeak={() => handleSpeak()}
-      />
-
-      <div style={{ marginTop: '2rem', textAlign: 'center' }}>
-        <div style={{ fontSize: '0.85rem', fontWeight: 800, color: 'var(--color-text-body)', letterSpacing: '0.05em' }}>
-          ĐẶT CHỮ CÁI VÀO ĐÚNG Ô (BẤM VÀO Ô ĐỂ GỠ)
-        </div>
-        <AnswerSlots
-          length={word.wordLength}
-          slots={slotLetters}
-          statusFeedback={statusFeedback}
-          onSlotClick={handleSlotClick}
-        />
+  return <>
+    <WordClueCard meaningVi={word.meaningVi} ipa={word.ipa} wordLength={word.wordLength} onSpeak={speak} hasAudio={Boolean(word.audioUrl?.trim())} isSpeaking={isSpeaking} />
+    <div style={{ marginTop: '2rem', textAlign: 'center' }}>
+      <p style={{ fontWeight: 800 }}>ĐẶT CHỮ CÁI VÀO ĐÚNG Ô (BẤM VÀO Ô ĐỂ GỠ)</p>
+      <AnswerSlots length={word.wordLength} slots={placedSlots.map((slot) => slot?.letter ?? null)} statusFeedback={statusFeedback} onSlotClick={handleSlotClick} />
+    </div>
+    <div style={{ marginTop: '1.5rem' }}>
+      <p style={{ fontWeight: 800, textAlign: 'center', marginBottom: '0.75rem' }}>KHO CHỮ CÁI (DÙNG TAY GẮP HOẶC KÉO CHUỘT)</p>
+      <div className="tiles-container" style={tilesStyle}>
+        {word.letters.map((letter, index) => {
+          const tileId = `${word.vocabId}-${index}`;
+          return <LetterTile key={tileId} id={tileId} letter={letter} isUsed={placedSlots.some((slot) => slot?.tileId === tileId)} onClick={() => handleTileClick(tileId, letter)} />;
+        })}
       </div>
+    </div>
+    <GameControlBar canSubmit={isAllFilled && !isLocked && attemptsLeft > 0} isSubmitting={isSubmitting} isLocked={isLocked} attemptsLeft={attemptsLeft} maxAttempts={session.maxAttemptPerWord} sessionScore={sessionScore} feedbackMessage={feedback?.message} feedbackType={feedback?.type} onConfirm={handleConfirmWord} onReset={handleResetSlots} />
+    {needsSync && <button type="button" className="btn-outline" disabled={isSyncing} onClick={() => void onRecover()} style={{ marginTop: '1rem' }}>{isSyncing ? 'Đang đồng bộ...' : 'Đồng bộ phiên để tiếp tục'}</button>}
+  </>;
+}
 
-      <div style={{ marginTop: '1.5rem' }}>
-        <div style={{ fontSize: '0.85rem', fontWeight: 800, color: 'var(--color-text-body)', letterSpacing: '0.05em', marginBottom: '0.75rem', textAlign: 'center' }}>
-          KHO CHỮ CÁI (DÙNG TAY GẮP HOẶC KÉO CHUỘT)
-        </div>
-        <div className="tiles-container" style={tilesContainerStyle}>
-          {word.letters.map((letter, idx) => {
-            const tileId = `${word.vocabId}-${idx}`;
-            const isUsed = usedTileIds.has(tileId);
+function GamePlay({ initialSession }: { initialSession: GameSessionData }) {
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const { user } = useAuth();
+  const streak = useMyStreak(user?.id);
+  const [session, setSession] = useState(initialSession);
+  const [currentWordIndex, setCurrentWordIndex] = useState(initialSession.initialWordIndex ?? 0);
+  const [sessionScore, setSessionScore] = useState(initialSession.currentScore ?? 0);
+  const [revision, setRevision] = useState(0);
+  const [result, setResult] = useState<FinishSessionResponse | null>(null);
+  const [isFinished, setIsFinished] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [isRestarting, setIsRestarting] = useState(false);
+  const [isExiting, setIsExiting] = useState(false);
+  const [sessionError, setSessionError] = useState<string | null>(null);
+  const [isAttemptPending, setIsAttemptPending] = useState(false);
+  const pendingAttemptRef = useRef(false);
+  const alive = useRef(true);
+  useEffect(() => { alive.current = true; return () => { alive.current = false; }; }, []);
+  const onPendingChange = useCallback((pending: boolean) => {
+    pendingAttemptRef.current = pending;
+    if (alive.current) setIsAttemptPending(pending);
+  }, []);
+  const dropHandlerRef = useRef<((drop: TileDropEvent) => void) | null>(null);
+  const operationPending = useRef(false);
+  const registerDrop = useCallback((handler: ((drop: TileDropEvent) => void) | null) => { dropHandlerRef.current = handler; }, []);
+  const input = useInputController({ onTileDrop: (drop) => dropHandlerRef.current?.(drop) });
+  const { switchMode } = input;
+  useEffect(() => {
+    if (isFinished) void switchMode('mouse');
+  }, [isFinished, switchMode]);
 
-            return (
-              <LetterTile
-                key={tileId}
-                id={tileId}
-                letter={letter}
-                isUsed={isUsed}
-                isSelected={selectedTile?.id === tileId}
-                onClick={() => handleTileClick(tileId, letter)}
-              />
-            );
-          })}
-        </div>
-      </div>
+  const refreshProgress = () => {
+    void queryClient.invalidateQueries({ queryKey: progressKeys.all });
+    void queryClient.invalidateQueries({ queryKey: ['topics'] });
+    void queryClient.invalidateQueries({ queryKey: ['leaderboard'] });
+  };
+  const applySession = (next: GameSessionData) => {
+    setSession(next);
+    setCurrentWordIndex(next.initialWordIndex ?? 0);
+    setSessionScore(next.currentScore ?? 0);
+    setRevision((value) => value + 1);
+    setSessionError(null);
+  };
+  const recoverSession = async () => {
+    if (operationPending.current) return;
+    operationPending.current = true;
+    setIsSyncing(true);
+    setSessionError(null);
+    try {
+      const { data: active } = await gameSessionApi.getActiveSession(session.topicId);
+      if (!alive.current) return;
+      if (active?.sessionId === session.sessionId) {
+        applySession(active);
+      } else {
+        const { data } = await gameSessionApi.getSessionResult(session.sessionId);
+        if (!alive.current) return;
+        setResult(data);
+        setIsFinished(true);
+        refreshProgress();
+      }
+    } catch (error) { if (alive.current) setSessionError(errorMessage(error)); }
+    finally { operationPending.current = false; if (alive.current) setIsSyncing(false); }
+  };
+  const handleAttempt = (attempt: SubmitAttemptResponse) => {
+    setSessionScore(attempt.sessionScore);
+    if (attempt.wordDone || attempt.sessionDone) refreshProgress();
+  };
+  const handleContinue = (attempt: SubmitAttemptResponse) => {
+    if (attempt.sessionDone) {
+      setIsFinished(true);
+      if (typeof attempt.sessionWon === 'boolean') {
+        setResult({ isWon: attempt.sessionWon, score: attempt.sessionScore, currentStreak: attempt.currentStreak ?? null });
+      } else {
+        void recoverSession();
+      }
+      return;
+    }
+    const nextIndex = session.words.findIndex((word) => word.vocabId === attempt.nextVocabularyId);
+    if (nextIndex >= 0 && nextIndex !== currentWordIndex) {
+      setCurrentWordIndex(nextIndex);
+    } else {
+      void recoverSession();
+    }
+  };
+  const handleRestart = async () => {
+    if (operationPending.current) return;
+    operationPending.current = true;
+    setIsRestarting(true);
+    setSessionError(null);
+    try {
+      const { data } = await gameSessionApi.createSession({ topicId: session.topicId, mode: session.mode });
+      if (!alive.current) return;
+      applySession(data);
+      setResult(null);
+      setIsFinished(false);
+    } catch (error) { if (alive.current) setSessionError(errorMessage(error)); }
+    finally { operationPending.current = false; if (alive.current) setIsRestarting(false); }
+  };
+  const handleExit = async () => {
+    if (operationPending.current || pendingAttemptRef.current || !window.confirm('Bạn có chắc chắn muốn thoát khỏi phiên chơi này không?')) return;
+    operationPending.current = true;
+    setIsExiting(true);
+    setSessionError(null);
+    try {
+      await gameSessionApi.cancelSession(session.topicId);
+      if (alive.current) { refreshProgress(); navigate('/topics'); }
+    } catch (error) { if (alive.current) setSessionError(errorMessage(error)); }
+    finally { operationPending.current = false; if (alive.current) setIsExiting(false); }
+  };
+  const currentWord = session.words[currentWordIndex];
+  const displayedResult = result ? { ...result, currentStreak: result.currentStreak ?? streak.data?.currentStreak ?? null } : null;
 
-      <GameControlBar
-        canSubmit={isAllFilled}
-        isSubmitting={isSubmitting}
-        attemptsLeft={attemptsLeft}
-        maxAttempts={maxAttempts}
-        sessionScore={sessionScore}
-        feedbackMessage={feedback?.message}
-        feedbackType={feedback?.type}
-        onConfirm={handleConfirmWord}
-        onReset={handleResetSlots}
-      />
-    </>
-  );
-};
+  return <div style={{ maxWidth: '880px', margin: '0 auto', padding: '1rem 0 3rem' }}>
+    {input.isPermissionGateOpen && !isFinished && <CameraPermissionGate onAllowCamera={input.startCamera} onUseMouse={() => void input.switchMode('mouse')} />}
+    <GameSessionHeader currentWordIndex={currentWordIndex} totalWords={session.totalWords} inputMode={input.mode} isSwitching={input.isStarting} isExitDisabled={isAttemptPending || isExiting || isSyncing} onToggleInputMode={() => void input.switchMode(input.mode === 'gesture' ? 'mouse' : 'gesture')} onExit={() => void handleExit()} />
+    {input.inputError && <div role="alert" style={{ marginBottom: '1rem', color: 'var(--color-error)' }}>{input.inputError} <button type="button" className="btn-outline" disabled={input.isStarting} onClick={() => void input.switchMode('gesture')}>Thử bật camera lại</button></div>}
+    {sessionError && !isFinished && <div role="alert" style={{ marginBottom: '1rem', color: 'var(--color-error)' }}>{sessionError} <button type="button" className="btn-outline" disabled={isSyncing} onClick={() => void recoverSession()}>Đồng bộ lại</button></div>}
+    {isExiting && <p role="status">Đang thoát phiên chơi...</p>}
+    <div className="game-playground" aria-busy={isSyncing}>
+      {!isFinished && currentWord && <WordBoard key={`${session.sessionId}:${currentWord.vocabId}:${revision}`} session={session} word={currentWord} sessionScore={sessionScore} isSyncing={isSyncing || isExiting} onAttempt={handleAttempt} onContinue={handleContinue} onRecover={recoverSession} onTileDropRegister={registerDrop} onPendingChange={onPendingChange} />}
+      {!isFinished && !currentWord && <div role="alert">Phiên chơi không có câu hỏi hiện tại. <button type="button" className="btn-outline" disabled={isSyncing} onClick={() => void recoverSession()}>Tải lại phiên</button></div>}
+    </div>
+    <CameraPreview videoRef={input.videoRef} statusText={input.statusText} fps={input.fps} isGestureMode={input.mode === 'gesture' && !isFinished} onSwitchToMouse={() => void input.switchMode('mouse')} />
+    <HandCursorOverlay canvasRef={input.canvasRef} isGestureMode={input.mode === 'gesture' && !isFinished} />
+    <GameResultModal isOpen={isFinished} result={displayedResult} isLoading={isSyncing} error={sessionError} isRestarting={isRestarting} onRetry={() => void recoverSession()} onPlayAgain={() => void handleRestart()} onBackToTopics={() => navigate('/topics')} />
+  </div>;
+}
 
-export const GameSessionPage: React.FC = () => {
+export function GameSessionPage() {
   const { sessionId } = useParams<{ sessionId: string }>();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-
-  const [session, setSession] = useState<GameSessionData | null>(null);
-  const [currentWordIndex, setCurrentWordIndex] = useState<number>(0);
-  const [sessionScore, setSessionScore] = useState<number>(0);
-  const [isResultOpen, setIsResultOpen] = useState<boolean>(false);
-  const [finishResult, setFinishResult] = useState<FinishSessionResponse | null>(null);
-
-  const dropHandlerRef = useRef<((drop: TileDropEvent) => void) | null>(null);
-
-  // Khởi tạo và đồng bộ phiên chơi
-  useEffect(() => {
-    const initSession = async () => {
-      const topicIdParam = searchParams.get('topicId');
-      const topicId = topicIdParam ? parseInt(topicIdParam, 10) : 1;
-
-      try {
-        // 1. Kiểm tra xem có phiên chơi dở dang trên topic này không để tiếp tục
-        const activeRes = await gameSessionApi.getActiveSession(topicId);
-        if (activeRes.data) {
-          setSession(activeRes.data);
-          if (activeRes.data.initialWordIndex !== undefined) {
-            setCurrentWordIndex(activeRes.data.initialWordIndex);
-          }
-          if (activeRes.data.currentScore !== undefined) {
-            setSessionScore(activeRes.data.currentScore);
-          }
-          return;
-        }
-
-        // 2. Nếu không có phiên dở dang, tạo mới phiên chơi
-        const res = await gameSessionApi.createSession({ topicId });
-        setSession(res.data);
-        if (res.data.initialWordIndex !== undefined) {
-          setCurrentWordIndex(res.data.initialWordIndex);
-        }
-        if (res.data.currentScore !== undefined) {
-          setSessionScore(res.data.currentScore);
-        }
-      } catch {
-        setSession({
-          sessionId: 5001,
-          topicId,
-          status: 'playing',
-          totalWords: FALLBACK_WORDS.length,
-          maxAttemptPerWord: 3,
-          sessionTimeoutMinutes: 30,
-          words: FALLBACK_WORDS,
-        });
-      }
-    };
-
-    initSession();
-  }, [sessionId, searchParams]);
-
-  // Hook Input Controller (Camera & Chuột)
-  const {
-    mode,
-    statusText,
-    fps,
-    isPermissionGateOpen,
-    videoRef,
-    canvasRef,
-    switchMode,
-    startCamera,
-  } = useInputController({
-    onTileDrop: (drop) => dropHandlerRef.current?.(drop),
+  const { user } = useAuth();
+  const topicId = searchParams.get('topicId');
+  const streak = useMyStreak(user?.id);
+  const mode = searchParams.get('mode');
+  const game = useQuery({
+    queryKey: ['game-session', user?.id, sessionId, topicId, mode],
+    queryFn: () => loadGameRoute(sessionId, topicId, mode),
+    retry: false,
+    staleTime: Infinity,
+    gcTime: 0,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
   });
-
-  const handleWordComplete = async (earnedPoints: number) => {
-    const nextScore = sessionScore + earnedPoints;
-    setSessionScore(nextScore);
-
-    if (currentWordIndex + 1 >= (session?.totalWords || 0)) {
-      try {
-        const finishRes = await gameSessionApi.finishSession(session?.sessionId || 5001);
-        setFinishResult(finishRes.data);
-      } catch {
-        setFinishResult({ isWon: true, score: nextScore, currentStreak: 3 });
-      }
-      setIsResultOpen(true);
-    } else {
-      setCurrentWordIndex((prev) => prev + 1);
-    }
-  };
-
-  const handleWordExhausted = () => {
-    if (currentWordIndex + 1 < (session?.totalWords || 0)) {
-      setCurrentWordIndex((prev) => prev + 1);
-    } else {
-      setFinishResult({ isWon: false, score: sessionScore, currentStreak: 0 });
-      setIsResultOpen(true);
-    }
-  };
-
-  const handleExitSession = async () => {
-    if (window.confirm('Bạn có chắc chắn muốn thoát khỏi phiên chơi này không?')) {
-      if (session?.topicId) {
-        try {
-          await gameSessionApi.cancelSession(session.topicId);
-        } catch {
-          // Bỏ qua
-        }
-      }
-      navigate('/topics');
-    }
-  };
-
-  const currentWord = session?.words[currentWordIndex];
-
-  return (
-    <div style={{ maxWidth: '880px', margin: '0 auto', padding: '1rem 0 3rem' }}>
-      {isPermissionGateOpen && (
-        <CameraPermissionGate
-          onAllowCamera={startCamera}
-          onUseMouse={() => switchMode('mouse')}
-        />
-      )}
-
-      <GameSessionHeader
-        currentWordIndex={currentWordIndex}
-        totalWords={session?.totalWords || 1}
-        inputMode={mode}
-        onToggleInputMode={() => switchMode(mode === 'gesture' ? 'mouse' : 'gesture')}
-        onExit={handleExitSession}
-      />
-
-      <div className="game-playground">
-        {currentWord && (
-          <WordBoard
-            key={currentWordIndex}
-            sessionId={session?.sessionId || 1}
-            word={currentWord}
-            maxAttempts={session?.maxAttemptPerWord || 3}
-            sessionScore={sessionScore}
-            onWordComplete={handleWordComplete}
-            onWordExhausted={handleWordExhausted}
-            onTileDropRegister={(h) => {
-              dropHandlerRef.current = h;
-            }}
-          />
-        )}
-      </div>
-
-      <CameraPreview
-        videoRef={videoRef}
-        statusText={statusText}
-        fps={fps}
-        isGestureMode={mode === 'gesture'}
-        onSwitchToMouse={() => switchMode('mouse')}
-      />
-
-      <HandCursorOverlay canvasRef={canvasRef} isGestureMode={mode === 'gesture'} />
-
-      <GameResultModal
-        isOpen={isResultOpen}
-        result={finishResult}
-        onPlayAgain={() => {
-          setIsResultOpen(false);
-          setCurrentWordIndex(0);
-          setSessionScore(0);
-        }}
-        onBackToTopics={() => {
-          setIsResultOpen(false);
-          navigate('/topics');
-        }}
-      />
-    </div>
-  );
-};
+  if (game.isPending) return <p role="status" style={{ padding: '3rem', textAlign: 'center' }}>Đang tải phiên chơi từ máy chủ...</p>;
+  if (game.isError) return <div role="alert" style={{ padding: '2rem', textAlign: 'center' }}>
+    <h1>Chưa thể mở phiên chơi</h1><p>{errorMessage(game.error)}</p>
+    <button type="button" className="btn-3d" onClick={() => void game.refetch()}>Thử lại</button>{' '}
+    <button type="button" className="btn-outline" onClick={() => navigate('/topics')}>Về danh sách chủ đề</button>
+  </div>;
+  if (game.data.kind === 'history') {
+    const history = game.data;
+    return <GameResultModal isOpen result={{ ...history.result, currentStreak: streak.data?.currentStreak ?? null }} onPlayAgain={() => navigate(`/game/new?topicId=${history.topicId}&mode=${history.mode}`)} onBackToTopics={() => navigate('/topics')} />;
+  }
+  return <GamePlay key={game.data.session.sessionId} initialSession={game.data.session} />;
+}

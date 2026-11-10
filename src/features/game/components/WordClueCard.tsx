@@ -7,6 +7,7 @@ interface WordClueCardProps {
   wordLength?: number;
   onSpeak?: () => void;
   isSpeaking?: boolean;
+  hasAudio?: boolean;
 }
 
 export const WordClueCard: React.FC<WordClueCardProps> = ({
@@ -15,6 +16,7 @@ export const WordClueCard: React.FC<WordClueCardProps> = ({
   wordLength,
   onSpeak,
   isSpeaking = false,
+  hasAudio = false,
 }) => {
   return (
     <div className="game-clue-card">
@@ -104,7 +106,9 @@ export const WordClueCard: React.FC<WordClueCardProps> = ({
         <button
           type="button"
           onClick={onSpeak}
-          disabled={isSpeaking}
+          disabled={!hasAudio || isSpeaking}
+          aria-label="Nghe phát âm từ tiếng Anh"
+          aria-busy={isSpeaking}
           className="btn-outline"
           style={{
             borderRadius: 'var(--radius-pill)',
@@ -115,7 +119,7 @@ export const WordClueCard: React.FC<WordClueCardProps> = ({
             flexShrink: 0,
             transition: 'all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1)',
           }}
-          title="Nghe phát âm chuẩn"
+          title={hasAudio ? 'Nghe phát âm chuẩn' : 'Từ này chưa có âm thanh'}
         >
           {isSpeaking ? (
             <Loader2 size={18} className="animate-spin" />
