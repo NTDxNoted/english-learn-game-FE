@@ -185,3 +185,51 @@ it('deduplicates concurrent Google OAuth exchanges for the same state', async ()
   expect(syncSpy).toHaveBeenCalledTimes(1);
   expect(first.profile.email).toBe(second.profile.email);
 });
+
+it('does not commit tokens when Google sync fails with 409 EMAIL_ALREADY_EXISTS', async () => {
+  saveGoogleOAuthTransaction({
+    state: 'state_conflict_409',
+    codeVerifier: validVerifier,
+    redirectUri: 'http://localhost:3000/callback',
+    createdAt: Date.now(),
+  });
+  vi.spyOn(authApi, 'loginWithGoogle').mockResolvedValue(dto(tokens));
+  vi.spyOn(authApi, 'syncUser').mockRejectedValue(
+    new ApiError({ message: 'Conflict', errorCode: 'EMAIL_ALREADY_EXISTS' }, 409),
+  );
+
+  render(
+    <AuthProvider>
+      <MemoryRouter initialEntries={['/callback?code=google_oauth_code_409&state=state_conflict_409']}>
+        <Routes>
+          <Route path="/callback" element={<LoginForm />} />
+          <Route path="/topics" element={<p>LEARNER ROUTE</p>} />
+        </Routes>
+      </MemoryRouter>
+    </AuthProvider>,
+  );
+
+  expect(
+    await screen.findByText(/Email đã thuộc tài khoản khác/i),
+  ).toBeTruthy();
+  expect(screen.queryByText('LEARNER ROUTE')).toBeNull();
+  expect(tokenStorage.hasAccessToken()).toBe(false);
+});
+
+it('generates valid PKCE S256 verifier and challenge in base64url format', async () => {
+  const verifier = generateRandomBase64Url(32);
+  expect(verifier.length).toBeGreaterThanOrEqual(43);
+  expect(verifier).toMatch(/^[A-Za-z0-9_-]+$/);
+
+  const challenge = await computeCodeChallengeS256(verifier);
+  expect(challenge.length).toBeGreaterThanOrEqual(43);
+  expect(challenge).toMatch(/^[A-Za-z0-9_-]+$/);
+
+  saveGoogleOAuthTransaction({
+    state: 'pkce_test_state',
+    codeVerifier: verifier,
+    redirectUri: 'http://localhost:3000/callback',
+    createdAt: Date.now(),
+  });
+  expect(readGoogleOAuthTransaction()?.codeVerifier).toBe(verifier);
+});
