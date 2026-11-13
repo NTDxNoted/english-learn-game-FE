@@ -164,3 +164,24 @@ it('rejects Google OAuth callback when state does not match sessionStorage witho
   expect(exchangeSpy).not.toHaveBeenCalled();
   expect(tokenStorage.hasAccessToken()).toBe(false);
 });
+
+it('deduplicates concurrent Google OAuth exchanges for the same state', async () => {
+  const learnerProfile = { ...profile, role: 'learner' as const };
+  saveGoogleOAuthTransaction({
+    state: 'dedup_state_001',
+    codeVerifier: validVerifier,
+    redirectUri: 'http://localhost:3000/callback',
+    createdAt: Date.now(),
+  });
+  const exchangeSpy = vi.spyOn(authApi, 'loginWithGoogle').mockResolvedValue(dto(tokens));
+  const syncSpy = vi.spyOn(authApi, 'syncUser').mockResolvedValue(dto(learnerProfile));
+
+  const [first, second] = await Promise.all([
+    authApi.completeGoogleLoginOnce('code_once', 'dedup_state_001'),
+    authApi.completeGoogleLoginOnce('code_once', 'dedup_state_001'),
+  ]);
+
+  expect(exchangeSpy).toHaveBeenCalledTimes(1);
+  expect(syncSpy).toHaveBeenCalledTimes(1);
+  expect(first.profile.email).toBe(second.profile.email);
+});
