@@ -1,5 +1,5 @@
-import React, { useEffect, useRef } from 'react';
-import { BookOpen, Gamepad2, Play, RotateCcw, Sparkles, X } from 'lucide-react';
+import React, { useEffect, useRef, useState } from 'react';
+import { BookOpen, Check, ChevronDown, Flame, Gamepad2, Lock, Play, RotateCcw, Sparkles, Trophy, X } from 'lucide-react';
 import type { TopicItem } from '../types/topic.types';
 import type { TopicProgressItem } from '../../progress/api/progressApi';
 import type { GameMode } from '../../game/types/gameSession.types';
@@ -9,6 +9,32 @@ const MODE_LABELS: Record<GameMode, string> = {
   CHECKPOINT: 'Thử thách 5 từ (CHECKPOINT)',
   REVIEW: 'Ôn tập chủ đề (REVIEW)',
 };
+
+const MODE_OPTIONS: Array<{
+  value: GameMode;
+  title: string;
+  subtitle: string;
+  icon: typeof Gamepad2;
+}> = [
+  {
+    value: 'FREE_PLAY',
+    title: 'Chơi tự do (FREE_PLAY)',
+    subtitle: 'Luyện phản xạ thoải mái',
+    icon: Gamepad2,
+  },
+  {
+    value: 'CHECKPOINT',
+    title: 'Thử thách 5 từ (CHECKPOINT)',
+    subtitle: 'Ghi điểm & giữ chuỗi Streak',
+    icon: Flame,
+  },
+  {
+    value: 'REVIEW',
+    title: 'Ôn tập chủ đề (REVIEW)',
+    subtitle: 'Tổng hợp toàn bộ từ đã học',
+    icon: Trophy,
+  },
+];
 
 const isGameMode = (value: string | undefined): value is GameMode =>
   value !== undefined && ['FREE_PLAY', 'CHECKPOINT', 'REVIEW'].includes(value);
