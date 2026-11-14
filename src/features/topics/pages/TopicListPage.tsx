@@ -171,9 +171,22 @@ export const TopicListPage: React.FC = () => {
       </div>
 
       <div style={{ marginBottom: '1.5rem', maxWidth: '640px' }}>
-        <label htmlFor="topic-game-mode" style={{ display: 'block', fontWeight: 700, marginBottom: '0.5rem' }}>Chế độ chơi</label>
-        <select id="topic-game-mode" className="form-input" value={mode} aria-describedby="topic-game-mode-hint" onChange={(event) => setMode(event.target.value as GameMode)}>
-          {Object.entries(MODE_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+        <label htmlFor="topic-game-mode" style={{ display: 'block', fontWeight: 800, color: 'var(--color-brand-primary)', marginBottom: '0.5rem' }}>
+          Chế độ chơi
+        </label>
+        <select
+          id="topic-game-mode"
+          className="form-input"
+          value={mode}
+          aria-describedby="topic-game-mode-hint"
+          onChange={(event) => setMode(event.target.value as GameMode)}
+          style={{ maxWidth: '320px' }}
+        >
+          {Object.entries(MODE_LABELS).map(([value, label]) => (
+            <option key={value} value={value}>
+              {label}
+            </option>
+          ))}
         </select>
         <p id="topic-game-mode-hint" style={{ marginTop: '0.65rem', color: 'var(--color-text-subtle)', fontSize: '0.875rem' }}>
           Thử thách CHECKPOINT dùng để ghi điểm và duy trì streak theo cấu hình; cần học đủ nhóm từ. Ôn tập REVIEW cần được mở khóa. Chủ đề có phiên đang chơi sẽ tiếp tục phiên đó.
