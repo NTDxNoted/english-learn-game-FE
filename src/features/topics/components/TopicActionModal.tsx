@@ -59,6 +59,20 @@ export const TopicActionModal: React.FC<TopicActionModalProps> = ({
   onPlay,
 }) => {
   const dialogRef = useRef<HTMLDivElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  const [openForTopicId, setOpenForTopicId] = useState<number | null>(null);
+  const isDropdownOpen = topic !== null && openForTopicId === topic.id;
+
+  useEffect(() => {
+    if (!isDropdownOpen) return;
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setOpenForTopicId(null);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isDropdownOpen]);
 
   useEffect(() => {
     if (!topic) return;
@@ -68,7 +82,11 @@ export const TopicActionModal: React.FC<TopicActionModalProps> = ({
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         event.preventDefault();
-        onClose();
+        if (isDropdownOpen) {
+          setOpenForTopicId(null);
+        } else {
+          onClose();
+        }
       }
     };
     document.addEventListener('keydown', handleKeyDown);
@@ -78,7 +96,7 @@ export const TopicActionModal: React.FC<TopicActionModalProps> = ({
         prevFocus.focus();
       }
     };
-  }, [topic, onClose]);
+  }, [topic, isDropdownOpen, onClose]);
 
   if (!topic) return null;
 
@@ -265,7 +283,7 @@ export const TopicActionModal: React.FC<TopicActionModalProps> = ({
                 Vào thẳng màn chơi phản xạ ghép chữ bằng cử chỉ bàn tay qua webcam hoặc kéo chuột như bình thường.
               </p>
 
-              <div style={{ marginTop: '0.85rem' }}>
+              <div ref={dropdownRef} style={{ marginTop: '0.85rem' }}>
                 <label
                   htmlFor="modal-game-mode"
                   style={{ display: 'block', fontSize: '0.78rem', fontWeight: 800, color: 'var(--color-brand-primary)', marginBottom: '0.35rem' }}
