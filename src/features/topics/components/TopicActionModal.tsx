@@ -283,28 +283,205 @@ export const TopicActionModal: React.FC<TopicActionModalProps> = ({
                 Vào thẳng màn chơi phản xạ ghép chữ bằng cử chỉ bàn tay qua webcam hoặc kéo chuột như bình thường.
               </p>
 
-              <div ref={dropdownRef} style={{ marginTop: '0.85rem' }}>
-                <label
-                  htmlFor="modal-game-mode"
+              <div style={{ marginTop: '0.85rem' }}>
+                <div
+                  id="modal-game-mode-label"
                   style={{ display: 'block', fontSize: '0.78rem', fontWeight: 800, color: 'var(--color-brand-primary)', marginBottom: '0.35rem' }}
                 >
                   Chế độ khi chơi mới
-                </label>
-                <select
-                  id="modal-game-mode"
-                  className="form-input"
-                  value={selectedMode}
-                  onChange={(event) => onSelectMode(event.target.value as GameMode)}
-                  style={{ backgroundColor: '#ffffff', fontSize: '0.85rem', padding: '0.5rem 0.75rem' }}
-                >
-                  {Object.entries(MODE_LABELS).map(([value, label]) => (
-                    <option key={value} value={value}>
-                      {label}
-                    </option>
-                  ))}
-                </select>
+                </div>
+                <div ref={dropdownRef} style={{ position: 'relative' }}>
+                  {(() => {
+                    const currentOption = MODE_OPTIONS.find((item) => item.value === selectedMode) ?? MODE_OPTIONS[0];
+                    const CurrentIcon = currentOption.icon;
+                    return (
+                      <button
+                        type="button"
+                        aria-haspopup="listbox"
+                        aria-expanded={isDropdownOpen}
+                        aria-labelledby="modal-game-mode-label"
+                        onClick={() => setOpenForTopicId((prev) => (prev === topic.id ? null : topic.id))}
+                      style={{
+                        width: '100%',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        gap: '0.6rem',
+                        padding: '0.55rem 0.8rem',
+                        borderRadius: '14px',
+                        backgroundColor: '#ffffff',
+                        border: isDropdownOpen
+                          ? '2px solid var(--color-brand-primary)'
+                          : '1.5px solid rgba(31, 122, 85, 0.28)',
+                        boxShadow: isDropdownOpen
+                          ? '0 0 0 3px rgba(50, 44, 130, 0.12)'
+                          : '0 2px 6px rgba(31, 122, 85, 0.08)',
+                        cursor: 'pointer',
+                        textAlign: 'left',
+                        transition: 'all 0.16s ease',
+                      }}
+                    >
+                      <span style={{ display: 'flex', alignItems: 'center', gap: '0.55rem', minWidth: 0 }}>
+                        <span
+                          style={{
+                            width: '28px',
+                            height: '28px',
+                            borderRadius: '8px',
+                            backgroundColor: '#e7f6ef',
+                            color: '#1f7a55',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            flexShrink: 0,
+                          }}
+                        >
+                          <CurrentIcon size={15} />
+                        </span>
+                        <span
+                          style={{
+                            fontSize: '0.86rem',
+                            fontWeight: 800,
+                            color: 'var(--color-brand-primary)',
+                            whiteSpace: 'nowrap',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                          }}
+                        >
+                          {currentOption.title}
+                        </span>
+                      </span>
+                      <ChevronDown
+                        size={17}
+                        style={{
+                          color: 'var(--color-brand-primary)',
+                          flexShrink: 0,
+                          transform: isDropdownOpen ? 'rotate(180deg)' : 'rotate(0deg)',
+                          transition: 'transform 0.18s ease',
+                        }}
+                      />
+                    </button>
+                  );
+                })()}
+
+                  {isDropdownOpen && (
+                    <div
+                      role="listbox"
+                      aria-labelledby="modal-game-mode-label"
+                      style={{
+                        position: 'absolute',
+                        bottom: 'calc(100% + 0.4rem)',
+                        left: 0,
+                        right: 0,
+                        zIndex: 40,
+                        backgroundColor: '#ffffff',
+                        borderRadius: '16px',
+                        padding: '0.4rem',
+                        border: '1.5px solid rgba(50, 44, 130, 0.16)',
+                        boxShadow: '0 14px 32px -4px rgba(50, 44, 130, 0.22)',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '0.25rem',
+                      }}
+                    >
+                      {MODE_OPTIONS.map((option) => {
+                        const Icon = option.icon;
+                        const isSelected = selectedMode === option.value;
+                        const optionReviewLocked = option.value === 'REVIEW' && progress?.reviewUnlocked === false;
+                        return (
+                          <button
+                            key={option.value}
+                            type="button"
+                            role="option"
+                            aria-selected={isSelected}
+                            onClick={() => {
+                              onSelectMode(option.value);
+                              setOpenForTopicId(null);
+                            }}
+                          style={{
+                            width: '100%',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            gap: '0.55rem',
+                            padding: '0.5rem 0.65rem',
+                            borderRadius: '11px',
+                            backgroundColor: isSelected ? '#ebe9ff' : 'transparent',
+                            border: 'none',
+                            cursor: 'pointer',
+                            textAlign: 'left',
+                            transition: 'background-color 0.14s ease',
+                          }}
+                        >
+                          <span style={{ display: 'flex', alignItems: 'center', gap: '0.55rem', minWidth: 0 }}>
+                            <span
+                              style={{
+                                width: '28px',
+                                height: '28px',
+                                borderRadius: '8px',
+                                backgroundColor: isSelected ? 'var(--color-brand-primary)' : '#e7f6ef',
+                                color: isSelected ? '#ffffff' : '#1f7a55',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                flexShrink: 0,
+                              }}
+                            >
+                              <Icon size={14} />
+                            </span>
+                            <span style={{ minWidth: 0 }}>
+                              <span
+                                style={{
+                                  display: 'block',
+                                  fontSize: '0.83rem',
+                                  fontWeight: 800,
+                                  color: 'var(--color-brand-primary)',
+                                  lineHeight: 1.2,
+                                }}
+                              >
+                                {option.title}
+                              </span>
+                              <span
+                                style={{
+                                  display: 'block',
+                                  fontSize: '0.72rem',
+                                  color: 'var(--color-text-subtle)',
+                                  fontWeight: 600,
+                                  marginTop: '0.08rem',
+                                }}
+                              >
+                                {option.subtitle}
+                              </span>
+                            </span>
+                          </span>
+
+                          <span
+                            style={{
+                              width: '20px',
+                              height: '20px',
+                              borderRadius: '999px',
+                              backgroundColor: isSelected
+                                ? 'var(--color-brand-primary)'
+                                : optionReviewLocked
+                                  ? '#fee2e2'
+                                  : 'transparent',
+                              color: isSelected ? '#ffffff' : '#991b1b',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              flexShrink: 0,
+                            }}
+                          >
+                            {isSelected ? <Check size={12} strokeWidth={3} /> : optionReviewLocked ? <Lock size={11} /> : null}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+                </div>
+
                 {isReviewLocked && (
-                  <p style={{ fontSize: '0.76rem', color: '#822c2c', fontWeight: 700, marginTop: '0.35rem' }}>
+                  <p style={{ fontSize: '0.75rem', color: '#822c2c', fontWeight: 700, marginTop: '0.35rem' }}>
                     Chế độ Ôn tập (REVIEW) cần hoàn thành toàn bộ các mốc thử thách của chủ đề trước.
                   </p>
                 )}
