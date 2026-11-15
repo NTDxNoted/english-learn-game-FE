@@ -25,9 +25,24 @@ export class VocabularyAudioPlayer {
 
   async play(url: string | null | undefined, refreshUrl?: () => Promise<string | null>) {
     this.stop();
-    if (!url?.trim()) return;
+    let initialUrl = url?.trim() || null;
+    if (!initialUrl && !refreshUrl) return;
     const generation = this.generation;
     this.onBusy(true);
+    let renewedInitially = false;
+    if (!initialUrl && refreshUrl) {
+      try {
+        initialUrl = (await refreshUrl())?.trim() || null;
+      } catch {
+        initialUrl = null;
+      }
+      if (generation !== this.generation) return;
+      if (!initialUrl) {
+        this.onBusy(false);
+        return;
+      }
+      renewedInitially = true;
+    }
 
     const attempt = async (source: string, renewed: boolean): Promise<void> => {
       if (generation !== this.generation) return;
@@ -75,6 +90,7 @@ export class VocabularyAudioPlayer {
       }
     };
 
-    await attempt(url, false);
+    if (!initialUrl) return;
+    await attempt(initialUrl, renewedInitially);
   }
 }
