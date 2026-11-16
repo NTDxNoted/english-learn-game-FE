@@ -281,7 +281,7 @@ function GamePlay({ initialSession }: { initialSession: GameSessionData }) {
   const displayedResult = result ? { ...result, currentStreak: result.currentStreak ?? streak.data?.currentStreak ?? null } : null;
 
   return <div style={{ maxWidth: '880px', margin: '0 auto', padding: '1rem 0 3rem' }}>
-    {input.isPermissionGateOpen && !isFinished && <CameraPermissionGate onAllowCamera={input.startCamera} onUseMouse={() => void input.switchMode('mouse')} />}
+    {input.isPermissionGateOpen && !isFinished && <CameraPermissionGate onAllowCamera={input.startCamera} onUseMouse={() => void input.switchMode('mouse')} onBack={() => navigate('/topics')} />}
     <GameSessionHeader currentWordIndex={currentWordIndex} totalWords={session.totalWords} inputMode={input.mode} isSwitching={input.isStarting} isExitDisabled={isAttemptPending || isExiting || isSyncing} onToggleInputMode={() => void input.switchMode(input.mode === 'gesture' ? 'mouse' : 'gesture')} onExit={() => void handleExit()} />
     {input.inputError && <div role="alert" style={{ marginBottom: '1rem', color: 'var(--color-error)' }}>{input.inputError} <button type="button" className="btn-outline" disabled={input.isStarting} onClick={() => void input.switchMode('gesture')}>Thử bật camera lại</button></div>}
     {sessionError && !isFinished && <div role="alert" style={{ marginBottom: '1rem', color: 'var(--color-error)' }}>{sessionError} <button type="button" className="btn-outline" disabled={isSyncing} onClick={() => void recoverSession()}>Đồng bộ lại</button></div>}
