@@ -1,15 +1,17 @@
 ﻿import React from 'react';
-import { Camera, ShieldCheck, MousePointer, Sparkles } from 'lucide-react';
+import { ArrowLeft, Camera, ShieldCheck, MousePointer, Sparkles } from 'lucide-react';
 
 interface CameraPermissionGateProps {
   onAllowCamera: () => void;
   onUseMouse: () => void;
+  onBack?: () => void;
   allowMouseMode?: boolean;
 }
 
 export const CameraPermissionGate: React.FC<CameraPermissionGateProps> = ({
   onAllowCamera,
   onUseMouse,
+  onBack,
   allowMouseMode = true,
 }) => {
   return (
@@ -103,6 +105,7 @@ export const CameraPermissionGate: React.FC<CameraPermissionGateProps> = ({
               <span>Chơi bằng chuột / cảm ứng</span>
             </button>
           )}
+          {void ArrowLeft; void onBack;}
         </div>
 
         <div style={{ marginTop: '1.25rem', fontSize: '0.8rem', color: 'var(--color-text-muted)' }}>
