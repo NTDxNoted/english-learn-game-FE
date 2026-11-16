@@ -1,8 +1,8 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { VocabularyAudioPlayer } from '../../../lib/vocabularyAudio';
 
 export function useVocabularyAudio(
-  identity: string,
+  _identity: string,
   audioUrl: string | null | undefined,
   refreshUrl: () => Promise<string | null>,
   onError: (message: string) => void,
@@ -10,9 +10,11 @@ export function useVocabularyAudio(
   const [isSpeaking, setIsSpeaking] = useState(false);
   const player = useMemo(
     () => new VocabularyAudioPlayer(setIsSpeaking, onError),
-    [identity, onError],
+    [onError],
   );
-  useEffect(() => () => player.stop(), [player, audioUrl]);
-  const speak = useCallback(() => { void player.play(audioUrl, refreshUrl); }, [player, audioUrl, refreshUrl]);
+  const speak = useCallback(() => {
+    void player.play(audioUrl, refreshUrl);
+  }, [player, audioUrl, refreshUrl]);
+
   return { speak, isSpeaking };
 }
