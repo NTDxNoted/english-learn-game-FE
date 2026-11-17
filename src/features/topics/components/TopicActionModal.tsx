@@ -104,7 +104,18 @@ export const TopicActionModal: React.FC<TopicActionModalProps> = ({
   const activeSessionMode = isGameMode(progress?.activeSessionMode)
     ? progress.activeSessionMode
     : undefined;
-  const isReviewLocked = selectedMode === 'REVIEW' && progress?.reviewUnlocked === false;
+  const minCheckpointWords =
+    progress && progress.totalVocabularies > 0 ? Math.min(5, progress.totalVocabularies) : 5;
+  const isCheckpointUnlocked = !progress || progress.furthestPosition >= minCheckpointWords;
+  const isReviewUnlocked = progress?.reviewUnlocked !== false;
+  const isCheckpointLocked = selectedMode === 'CHECKPOINT' && !isCheckpointUnlocked;
+  const isReviewLocked = selectedMode === 'REVIEW' && !isReviewUnlocked;
+  const isPlayModeLocked = isReviewLocked || isCheckpointLocked;
+  const visibleModeOptions = MODE_OPTIONS.filter(
+    (option) => option.value !== 'REVIEW' || isReviewUnlocked,
+  );
+  const displayedSelectedMode: GameMode =
+    selectedMode === 'REVIEW' && !isReviewUnlocked ? 'FREE_PLAY' : selectedMode;
 
   return (
     <div
@@ -383,7 +394,7 @@ export const TopicActionModal: React.FC<TopicActionModalProps> = ({
                         gap: '0.25rem',
                       }}
                     >
-                      {MODE_OPTIONS.map((option) => {
+                      {visibleModeOptions.map((option) => {
                         const Icon = option.icon;
                         const isSelected = selectedMode === option.value;
                         const optionReviewLocked = option.value === 'REVIEW' && progress?.reviewUnlocked === false;
@@ -512,8 +523,8 @@ export const TopicActionModal: React.FC<TopicActionModalProps> = ({
               <button
                 type="button"
                 className={hasActiveSession ? 'btn-outline' : 'btn-3d'}
-                disabled={isReviewLocked}
-                onClick={() => onPlay(topic, selectedMode)}
+                disabled={isPlayModeLocked}
+                onClick={() => onPlay(topic, displayedSelectedMode)}
                 style={{ width: '100%', justifyContent: 'center', backgroundColor: hasActiveSession ? '#ffffff' : undefined }}
               >
                 <Play size={18} className={hasActiveSession ? undefined : 'fill-current'} />
