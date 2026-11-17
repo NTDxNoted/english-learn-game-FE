@@ -303,7 +303,9 @@ export const TopicActionModal: React.FC<TopicActionModalProps> = ({
                 </div>
                 <div ref={dropdownRef} style={{ position: 'relative' }}>
                   {(() => {
-                    const currentOption = MODE_OPTIONS.find((item) => item.value === selectedMode) ?? MODE_OPTIONS[0];
+                    const currentOption =
+                      visibleModeOptions.find((item) => item.value === displayedSelectedMode) ??
+                      visibleModeOptions[0];
                     const CurrentIcon = currentOption.icon;
                     return (
                       <button
@@ -396,15 +398,19 @@ export const TopicActionModal: React.FC<TopicActionModalProps> = ({
                     >
                       {visibleModeOptions.map((option) => {
                         const Icon = option.icon;
-                        const isSelected = selectedMode === option.value;
-                        const optionReviewLocked = option.value === 'REVIEW' && progress?.reviewUnlocked === false;
+                        const isSelected = displayedSelectedMode === option.value;
+                        const optionLocked =
+                          (option.value === 'CHECKPOINT' && !isCheckpointUnlocked) ||
+                          (option.value === 'REVIEW' && !isReviewUnlocked);
                         return (
                           <button
                             key={option.value}
                             type="button"
                             role="option"
                             aria-selected={isSelected}
+                            disabled={optionLocked}
                             onClick={() => {
+                              if (optionLocked) return;
                               onSelectMode(option.value);
                               setOpenForTopicId(null);
                             }}
@@ -418,7 +424,8 @@ export const TopicActionModal: React.FC<TopicActionModalProps> = ({
                             borderRadius: '11px',
                             backgroundColor: isSelected ? '#ebe9ff' : 'transparent',
                             border: 'none',
-                            cursor: 'pointer',
+                            cursor: optionLocked ? 'not-allowed' : 'pointer',
+                            opacity: optionLocked ? 0.55 : 1,
                             textAlign: 'left',
                             transition: 'background-color 0.14s ease',
                           }}
@@ -455,12 +462,14 @@ export const TopicActionModal: React.FC<TopicActionModalProps> = ({
                                 style={{
                                   display: 'block',
                                   fontSize: '0.72rem',
-                                  color: 'var(--color-text-subtle)',
+                                  color: optionLocked ? '#991b1b' : 'var(--color-text-subtle)',
                                   fontWeight: 600,
                                   marginTop: '0.08rem',
                                 }}
                               >
-                                {option.subtitle}
+                                {option.value === 'CHECKPOINT' && optionLocked
+                                  ? `Cần học đủ ${minCheckpointWords} từ vựng trước`
+                                  : option.subtitle}
                               </span>
                             </span>
                           </span>
@@ -472,7 +481,7 @@ export const TopicActionModal: React.FC<TopicActionModalProps> = ({
                               borderRadius: '999px',
                               backgroundColor: isSelected
                                 ? 'var(--color-brand-primary)'
-                                : optionReviewLocked
+                                : optionLocked
                                   ? '#fee2e2'
                                   : 'transparent',
                               color: isSelected ? '#ffffff' : '#991b1b',
@@ -482,7 +491,7 @@ export const TopicActionModal: React.FC<TopicActionModalProps> = ({
                               flexShrink: 0,
                             }}
                           >
-                            {isSelected ? <Check size={12} strokeWidth={3} /> : optionReviewLocked ? <Lock size={11} /> : null}
+                            {isSelected ? <Check size={12} strokeWidth={3} /> : optionLocked ? <Lock size={11} /> : null}
                           </span>
                         </button>
                       );
@@ -490,6 +499,12 @@ export const TopicActionModal: React.FC<TopicActionModalProps> = ({
                   </div>
                 )}
                 </div>
+
+                {isCheckpointLocked && (
+                  <p style={{ fontSize: '0.75rem', color: '#822c2c', fontWeight: 700, marginTop: '0.35rem' }}>
+                    Cần học đủ ít nhất {minCheckpointWords} từ vựng (bấm Học 5 từ & Chơi bên trái) để mở khóa Thử thách (CHECKPOINT).
+                  </p>
+                )}
 
                 {isReviewLocked && (
                   <p style={{ fontSize: '0.75rem', color: '#822c2c', fontWeight: 700, marginTop: '0.35rem' }}>
@@ -507,7 +522,7 @@ export const TopicActionModal: React.FC<TopicActionModalProps> = ({
                   onClick={() =>
                     onPlay(
                       topic,
-                      activeSessionMode ?? selectedMode,
+                      activeSessionMode ?? displayedSelectedMode,
                       progress.activeSessionId,
                     )
                   }
