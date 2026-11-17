@@ -112,3 +112,13 @@ it('opens the Learn vs Play modal automatically when ?select=<topicId> is presen
   await userEvent.click(within(dialog).getByRole('button', { name: 'Đóng hộp thoại chọn chế độ' }));
   expect(setSearchParams).toHaveBeenCalled();
 });
+
+it('switches game mode inside TopicActionModal using the custom dropdown', async () => {
+  show();
+  await userEvent.click(await screen.findByRole('button', { name: /Động vật Animals/ }));
+  const dialog = await screen.findByRole('dialog');
+  await userEvent.click(within(dialog).getByRole('button', { name: /Chế độ khi chơi mới/i }));
+  await userEvent.click(within(dialog).getByRole('option', { name: /Thử thách 5 từ \(CHECKPOINT\)/i }));
+  await userEvent.click(within(dialog).getByRole('button', { name: /Chơi ngay/ }));
+  expect(navigate).toHaveBeenCalledWith('/game/new?topicId=73&mode=CHECKPOINT');
+});
