@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { ChevronRight } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 
@@ -7,6 +7,7 @@ export interface TopicCardProps {
   english?: string;
   description?: string;
   icon: LucideIcon;
+  imageUrl?: string | null;
   color?: 'lavender' | 'peach' | 'blue' | 'pink' | 'yellow' | 'mint';
   lessons?: string;
   totalWords?: number;
@@ -20,12 +21,16 @@ export const TopicCard: React.FC<TopicCardProps> = ({
   english,
   description,
   icon: Icon,
+  imageUrl,
   color = 'lavender',
   lessons,
   totalWords,
   completedWords,
   onClick,
 }) => {
+  const [failedImageUrl, setFailedImageUrl] = useState<string | null>(null);
+  const trimmedImageUrl = imageUrl?.trim() || null;
+  const showImage = Boolean(trimmedImageUrl && failedImageUrl !== trimmedImageUrl);
   const colorClass =
     color === 'lavender'
       ? 'bg-pastel-lavender'
@@ -60,8 +65,30 @@ export const TopicCard: React.FC<TopicCardProps> = ({
       }}
     >
       <div style={{ minWidth: 0, width: '100%' }}>
-        <div className="card-icon-box" style={{ marginBottom: 0 }}>
-          <Icon size={24} />
+        <div
+          className="card-icon-box"
+          style={{
+            marginBottom: 0,
+            overflow: 'hidden',
+            padding: showImage ? 0 : undefined,
+          }}
+        >
+          {showImage && trimmedImageUrl ? (
+            <img
+              src={trimmedImageUrl}
+              alt=""
+              loading="lazy"
+              onError={() => setFailedImageUrl(trimmedImageUrl)}
+              style={{
+                width: '100%',
+                height: '100%',
+                objectFit: 'cover',
+                display: 'block',
+              }}
+            />
+          ) : (
+            <Icon size={24} />
+          )}
         </div>
 
         <h3 className="card-topic-title" style={{ marginTop: '1.25rem' }}>{title}</h3>

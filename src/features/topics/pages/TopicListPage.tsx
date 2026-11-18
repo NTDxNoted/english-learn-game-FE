@@ -211,7 +211,11 @@ export const TopicListPage: React.FC = () => {
       {/* Lưới các chủ đề học tập */}
       <div className="cards-grid-4" style={{ marginTop: '1.5rem' }}>
         {!isError && topics?.map((topic, i) => {
-          const meta = TOPIC_METADATA[topic.name] || { icon: BookOpen, color: 'lavender' as const };
+          const fallbackColors = ['lavender', 'peach', 'blue', 'pink', 'yellow', 'mint'] as const;
+          const meta = TOPIC_METADATA[topic.name] || {
+            icon: BookOpen,
+            color: fallbackColors[i % fallbackColors.length],
+          };
           const counts = !progress.isError ? progressByTopic.get(topic.id) : undefined;
           const resumeLabel = counts?.activeSessionId
             ? `Tiếp tục ${isGameMode(counts.activeSessionMode) ? MODE_LABELS[counts.activeSessionMode] : 'phiên đang chơi'}`
@@ -223,6 +227,7 @@ export const TopicListPage: React.FC = () => {
               title={topic.description || topic.name}
               english={topic.name}
               icon={meta.icon}
+              imageUrl={topic.imageUrl ?? topic.iconUrl}
               color={meta.color}
               totalWords={counts?.totalVocabularies}
               completedWords={counts?.furthestPosition}
