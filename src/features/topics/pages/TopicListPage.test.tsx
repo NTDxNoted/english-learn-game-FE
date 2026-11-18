@@ -122,3 +122,14 @@ it('switches game mode inside TopicActionModal using the custom dropdown', async
   await userEvent.click(within(dialog).getByRole('button', { name: /Chơi ngay/ }));
   expect(navigate).toHaveBeenCalledWith('/game/new?topicId=73&mode=CHECKPOINT');
 });
+
+it('hides REVIEW option when reviewUnlocked is false and disables CHECKPOINT when fewer than 5 words learned', async () => {
+  getMyProgress.mockResolvedValue({ data: { topics: [{ topicId: 73, totalVocabularies: 17, furthestPosition: 0, reviewUnlocked: false }] } });
+  show();
+  await userEvent.click(await screen.findByRole('button', { name: /Động vật Animals/ }));
+  const dialog = await screen.findByRole('dialog');
+  await userEvent.click(within(dialog).getByRole('button', { name: /Chế độ khi chơi mới/i }));
+  expect(within(dialog).queryByRole('option', { name: /Ôn tập chủ đề \(REVIEW\)/i })).toBeNull();
+  const checkpointOption = within(dialog).getByRole('option', { name: /Thử thách 5 từ \(CHECKPOINT\)/i }) as HTMLButtonElement;
+  expect(checkpointOption.disabled).toBe(true);
+});
