@@ -100,3 +100,13 @@ it('renews a URL when the media element fails after play resolved', async () => 
   await vi.waitFor(() => expect(FakeAudio.instances).toHaveLength(2));
   expect(FakeAudio.instances[1].src).toBe('new.mp3');
 });
+
+it('fetches and plays a fresh URL via refreshUrl when initial audioUrl is null', async () => {
+  const refresh = vi.fn(async () => 'https://audio.example/cat-fresh.mp3');
+  const error = vi.fn();
+  await new VocabularyAudioPlayer(vi.fn(), error).play(null, refresh);
+  expect(refresh).toHaveBeenCalledTimes(1);
+  expect(FakeAudio.instances).toHaveLength(1);
+  expect(FakeAudio.instances[0].src).toBe('https://audio.example/cat-fresh.mp3');
+  expect(error).not.toHaveBeenCalled();
+});
