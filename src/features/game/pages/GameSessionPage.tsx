@@ -36,7 +36,7 @@ interface WordBoardProps {
 }
 
 export function WordBoard({ session, word, sessionScore, isSyncing, onAttempt, onContinue, onRecover, onTileDropRegister, onPendingChange }: WordBoardProps) {
-  const { success: toastSuccess, info: toastInfo } = useToast();
+  const { success: toastSuccess, info: toastInfo, warning: toastWarning, error: toastError } = useToast();
   const [placedSlots, setPlacedSlots] = useState<(PlacedSlotItem | null)[]>(() => Array(word.wordLength).fill(null));
   const [attemptsLeft, setAttemptsLeft] = useState(word.remainingAttempts);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -97,9 +97,13 @@ export function WordBoard({ session, word, sessionScore, isSyncing, onAttempt, o
   };
   const handleResetSlots = () => {
     if (isLocked || busy.current) return;
+    const hadFilledSlots = placedSlots.some(Boolean);
     setPlacedSlots(Array(word.wordLength).fill(null));
     setFeedback(null);
     setStatusFeedback(null);
+    if (hadFilledSlots) {
+      toastInfo('Đã xóa các chữ cái vừa đặt để ghép lại.', 'Làm mới ô chữ');
+    }
   };
   const isAllFilled = placedSlots.length === word.wordLength && placedSlots.every(Boolean);
   const handleConfirmWord = async () => {
@@ -120,9 +124,15 @@ export function WordBoard({ session, word, sessionScore, isSyncing, onAttempt, o
         toastSuccess(`Đúng rồi! +${data.points} điểm`, 'Tuyệt vời');
         speak();
       } else {
-        setFeedback({ message: data.wordDone || data.sessionDone
+        const wrongMsg = data.wordDone || data.sessionDone
           ? `Hết lượt thử!${data.correctWord ? ` Đáp án đúng: ${data.correctWord}` : ''}`
-          : `Chưa chính xác! Bạn còn ${data.attemptsLeft} lượt thử nữa.`, type: 'error' });
+          : `Chưa chính xác! Bạn còn ${data.attemptsLeft} lượt thử nữa.`;
+        setFeedback({ message: wrongMsg, type: 'error' });
+        if (data.wordDone || data.sessionDone) {
+          (toastError ?? toastInfo)(wrongMsg, 'Hết lượt thử');
+        } else {
+          (toastWarning ?? toastInfo)(wrongMsg, 'Chưa chính xác');
+        }
       }
       if (data.wordDone || data.sessionDone) {
         awaitingTransition = true;
@@ -136,7 +146,9 @@ export function WordBoard({ session, word, sessionScore, isSyncing, onAttempt, o
       // The server may have committed an attempt before a timeout. Read state before another POST.
       setNeedsSync(true);
       setStatusFeedback('error');
-      setFeedback({ message: `${errorMessage(error)} Hãy đồng bộ phiên trước khi tiếp tục.`, type: 'error' });
+      const msg = `${errorMessage(error)} Hãy đồng bộ phiên trước khi tiếp tục.`;
+      setFeedback({ message: msg, type: 'error' });
+      (toastError ?? toastInfo)(msg, 'Lỗi kết nối');
     } finally {
       if (mounted.current) {
         setIsSubmitting(false);
