@@ -207,3 +207,12 @@ it('shows initialization errors with retry and never fabricates a word or sessio
   await screen.findByText('Con mèo');
   expect(gameSessionApi.createSession).not.toHaveBeenCalled();
 });
+
+it('exits active session with a toast notification without calling window.confirm', async () => {
+  vi.mocked(gameSessionApi.cancelSession).mockResolvedValueOnce(envelope(null));
+  show();
+  await screen.findByText('Con mèo');
+  await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Thoát phiên' })); });
+  expect(gameSessionApi.cancelSession).toHaveBeenCalledWith(2);
+  expect(toast.info).toHaveBeenCalledWith('Đã thoát phiên chơi và quay về danh sách chủ đề.', 'Thoát phiên chơi');
+});
