@@ -183,6 +183,7 @@ function GamePlay({ initialSession }: { initialSession: GameSessionData }) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { user } = useAuth();
+  const { success: toastSuccess, info: toastInfo, error: toastError } = useToast();
   const streak = useMyStreak(user?.id);
   const [session, setSession] = useState(initialSession);
   const [currentWordIndex, setCurrentWordIndex] = useState(initialSession.initialWordIndex ?? 0);
@@ -233,6 +234,7 @@ function GamePlay({ initialSession }: { initialSession: GameSessionData }) {
       if (!alive.current) return;
       if (active?.sessionId === session.sessionId) {
         applySession(active);
+        toastInfo('Đã đồng bộ lại trạng thái phiên chơi.', 'Đồng bộ phiên');
       } else {
         const { data } = await gameSessionApi.getSessionResult(session.sessionId);
         if (!alive.current) return;
@@ -240,7 +242,13 @@ function GamePlay({ initialSession }: { initialSession: GameSessionData }) {
         setIsFinished(true);
         refreshProgress();
       }
-    } catch (error) { if (alive.current) setSessionError(errorMessage(error)); }
+    } catch (error) {
+      if (alive.current) {
+        const msg = errorMessage(error);
+        setSessionError(msg);
+        (toastError ?? toastInfo)(msg, 'Lỗi đồng bộ');
+      }
+    }
     finally { operationPending.current = false; if (alive.current) setIsSyncing(false); }
   };
   const handleAttempt = (attempt: SubmitAttemptResponse) => {
@@ -275,26 +283,43 @@ function GamePlay({ initialSession }: { initialSession: GameSessionData }) {
       applySession(data);
       setResult(null);
       setIsFinished(false);
-    } catch (error) { if (alive.current) setSessionError(errorMessage(error)); }
+      toastSuccess('Đã bắt đầu ván chơi mới!', 'Chơi lại');
+    } catch (error) {
+      if (alive.current) {
+        const msg = errorMessage(error);
+        setSessionError(msg);
+        (toastError ?? toastInfo)(msg, 'Không thể chơi lại');
+      }
+    }
     finally { operationPending.current = false; if (alive.current) setIsRestarting(false); }
   };
   const handleExit = async () => {
-    if (operationPending.current || pendingAttemptRef.current || !window.confirm('Bạn có chắc chắn muốn thoát khỏi phiên chơi này không?')) return;
+    if (operationPending.current || pendingAttemptRef.current) return;
     operationPending.current = true;
     setIsExiting(true);
     setSessionError(null);
     try {
       await gameSessionApi.cancelSession(session.topicId);
-      if (alive.current) { refreshProgress(); navigate('/topics'); }
-    } catch (error) { if (alive.current) setSessionError(errorMessage(error)); }
+      if (alive.current) {
+        refreshProgress();
+        toastInfo('Đã thoát phiên chơi và quay về danh sách chủ đề.', 'Thoát phiên chơi');
+        navigate('/topics');
+      }
+    } catch (error) {
+      if (alive.current) {
+        const msg = errorMessage(error);
+        setSessionError(msg);
+        (toastError ?? toastInfo)(msg, 'Không thể thoát phiên');
+      }
+    }
     finally { operationPending.current = false; if (alive.current) setIsExiting(false); }
   };
   const currentWord = session.words[currentWordIndex];
   const displayedResult = result ? { ...result, currentStreak: result.currentStreak ?? streak.data?.currentStreak ?? null } : null;
 
   return <div style={{ maxWidth: '880px', margin: '0 auto', padding: '1rem 0 3rem' }}>
-    {input.isPermissionGateOpen && !isFinished && <CameraPermissionGate onAllowCamera={input.startCamera} onUseMouse={() => void input.switchMode('mouse')} onBack={() => navigate('/topics')} />}
-    <GameSessionHeader currentWordIndex={currentWordIndex} totalWords={session.totalWords} inputMode={input.mode} isSwitching={input.isStarting} isExitDisabled={isAttemptPending || isExiting || isSyncing} onToggleInputMode={() => void input.switchMode(input.mode === 'gesture' ? 'mouse' : 'gesture')} onExit={() => void handleExit()} />
+    {input.isPermissionGateOpen && !isFinished && <CameraPermissionGate onAllowCamera={input.startCamera} onUseMouse={() => { void input.switchMode('mouse'); toastInfo('Đã chọn chế độ chơi bằng chuột & cảm ứng.', 'Chế độ điều khiển'); }} onBack={() => { toastInfo('Đã quay lại danh sách chủ đề.', 'Điều hướng'); navigate('/topics'); }} />}
+    <GameSessionHeader currentWordIndex={currentWordIndex} totalWords={session.totalWords} inputMode={input.mode} isSwitching={input.isStarting} isExitDisabled={isAttemptPending || isExiting || isSyncing} onToggleInputMode={() => { const nextMode = input.mode === 'gesture' ? 'mouse' : 'gesture'; void input.switchMode(nextMode); toastInfo(nextMode === 'gesture' ? 'Đã chuyển sang chế độ cử chỉ tay qua Webcam.' : 'Đã chuyển sang chế độ kéo thả bằng chuột.', 'Chế độ điều khiển'); }} onExit={() => void handleExit()} />
     {input.inputError && <div role="alert" style={{ marginBottom: '1rem', color: 'var(--color-error)' }}>{input.inputError} <button type="button" className="btn-outline" disabled={input.isStarting} onClick={() => void input.switchMode('gesture')}>Thử bật camera lại</button></div>}
     {sessionError && !isFinished && <div role="alert" style={{ marginBottom: '1rem', color: 'var(--color-error)' }}>{sessionError} <button type="button" className="btn-outline" disabled={isSyncing} onClick={() => void recoverSession()}>Đồng bộ lại</button></div>}
     {isExiting && <p role="status">Đang thoát phiên chơi...</p>}
