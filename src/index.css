@@ -84,6 +84,10 @@
   padding: 0;
 }
 
+dialog {
+  margin: auto;
+}
+
 body {
   font-family: var(--font-body);
   background-color: var(--color-bg-canvas);
@@ -111,10 +115,164 @@ a {
    ========================================================================== */
 
 .app-shell {
+  position: relative;
+  isolation: isolate;
   display: flex;
   flex-direction: column;
   min-height: 100vh;
   background-color: var(--color-bg-canvas);
+}
+
+/* ==========================================================================
+   PVP-Lobby Style Bouncing Study Icons Background
+   ========================================================================== */
+
+.pvp-study-bg {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  user-select: none;
+  overflow: hidden;
+}
+
+.pvp-study-bg.is-lobby {
+  opacity: 0.58;
+}
+
+.pvp-study-bg.is-subtle {
+  opacity: 0.34;
+}
+
+.pvp-bounce-x {
+  position: absolute;
+  top: 0;
+  left: 0;
+  will-change: transform;
+  animation-name: signly-pvp-bounce-x;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+}
+
+.pvp-bounce-y {
+  will-change: transform;
+  animation-name: signly-pvp-bounce-y;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+}
+
+.pvp-study-token {
+  width: 50px;
+  height: 50px;
+  border-radius: 16px;
+  display: grid;
+  place-items: center;
+  border: 2px solid transparent;
+  animation-name: signly-pvp-rock;
+  animation-timing-function: ease-in-out;
+  animation-iteration-count: infinite;
+  animation-direction: alternate;
+}
+
+.pvp-token-letter {
+  font-family: var(--font-display);
+  font-size: 1.35rem;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.pvp-token-lavender {
+  background-color: var(--color-pastel-lavender);
+  border-color: var(--color-pastel-lavender-border);
+  color: var(--color-brand-primary);
+  box-shadow: 0 4px 0 var(--color-pastel-lavender-shadow);
+}
+
+.pvp-token-yellow {
+  background-color: var(--color-pastel-yellow);
+  border-color: var(--color-pastel-yellow-border);
+  color: var(--color-pastel-yellow-text);
+  box-shadow: 0 4px 0 var(--color-pastel-yellow-border);
+}
+
+.pvp-token-mint {
+  background-color: var(--color-pastel-mint);
+  border-color: var(--color-pastel-mint-border);
+  color: var(--color-pastel-mint-text);
+  box-shadow: 0 4px 0 var(--color-pastel-mint-border);
+}
+
+.pvp-token-peach {
+  background-color: var(--color-pastel-peach-light);
+  border-color: var(--color-pastel-peach-border);
+  color: var(--color-pastel-peach-text);
+  box-shadow: 0 4px 0 var(--color-pastel-peach-border);
+}
+
+.pvp-token-blue {
+  background-color: var(--color-pastel-blue);
+  border-color: var(--color-pastel-blue-border);
+  color: var(--color-pastel-blue-text);
+  box-shadow: 0 4px 0 var(--color-pastel-blue-border);
+}
+
+.pvp-token-pink {
+  background-color: var(--color-pastel-pink);
+  border-color: var(--color-pastel-pink-border);
+  color: var(--color-pastel-pink-text);
+  box-shadow: 0 4px 0 var(--color-pastel-pink-border);
+}
+
+@keyframes signly-pvp-bounce-x {
+  from {
+    transform: translate3d(14px, 0, 0);
+  }
+  to {
+    transform: translate3d(calc(100vw - 66px), 0, 0);
+  }
+}
+
+@keyframes signly-pvp-bounce-y {
+  from {
+    transform: translate3d(0, 88px, 0);
+  }
+  to {
+    transform: translate3d(0, calc(100dvh - 68px), 0);
+  }
+}
+
+@keyframes signly-pvp-rock {
+  from {
+    transform: rotate(-14deg) scale(0.96);
+  }
+  to {
+    transform: rotate(14deg) scale(1.04);
+  }
+}
+
+@media (max-width: 600px) {
+  .pvp-study-token {
+    width: 40px;
+    height: 40px;
+    border-radius: 12px;
+  }
+  .pvp-study-bg.is-lobby {
+    opacity: 0.42;
+  }
+  .pvp-study-bg.is-subtle {
+    opacity: 0.24;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pvp-bounce-x,
+  .pvp-bounce-y,
+  .pvp-study-token {
+    animation: none !important;
+  }
+  .pvp-study-bg {
+    display: none;
+  }
 }
 
 .app-header {
@@ -273,6 +431,8 @@ a {
 }
 
 .app-main-content {
+  position: relative;
+  z-index: 1;
   flex: 1;
 }
 
@@ -283,6 +443,8 @@ a {
 }
 
 .app-footer {
+  position: relative;
+  z-index: 1;
   border-top: 1px solid var(--color-border-subtle);
   background-color: #ffffff;
   padding: 1.5rem;
@@ -1304,4 +1466,40 @@ select.form-input:hover {
   border-color: #10b981;
   background-color: rgba(16, 185, 129, 0.14);
   box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.35), inset 0 2px 4px rgba(16, 185, 129, 0.2);
+}
+
+.game-slot.filled.hand-hover-0 {
+  outline: 3.5px solid var(--color-brand-accent);
+  outline-offset: 3px;
+  transform: translateY(-5px) scale(1.05);
+}
+
+.game-slot.filled.hand-hover-1 {
+  outline: 3.5px solid #10b981;
+  outline-offset: 3px;
+  transform: translateY(-5px) scale(1.05);
+}
+
+.game-slot.filled.drag-source {
+  opacity: 0.32;
+  transform: scale(0.94);
+}
+
+.tiles-container.hand-return-target {
+  border-color: var(--color-brand-accent);
+  background: linear-gradient(180deg, rgba(255, 240, 194, 0.45) 0%, rgba(255, 220, 212, 0.32) 100%);
+  box-shadow: 0 0 0 4px rgba(255, 123, 98, 0.18);
+}
+
+button[data-gesture-hold].hand-button-hover:not(:disabled) {
+  outline: 3px solid rgba(255, 123, 98, 0.72);
+  outline-offset: 3px;
+  transform: translateY(-2px);
+}
+
+button[data-gesture-hold].hand-button-holding:not(:disabled) {
+  outline: 3.5px solid var(--color-brand-accent);
+  outline-offset: 4px;
+  box-shadow: 0 0 0 6px rgba(255, 123, 98, 0.24);
+  transform: translateY(1px) scale(0.99);
 }
