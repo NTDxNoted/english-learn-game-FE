@@ -33,7 +33,7 @@ export function GameResultModal({ isOpen, result, isLoading = false, error, isRe
     return () => { document.removeEventListener('keydown', trapFocus); if (previousFocus instanceof HTMLElement && previousFocus.isConnected) previousFocus.focus(); };
   }, [isOpen]);
   if (!isOpen) return null;
-  return <div style={{ position: 'fixed', inset: 0, background: 'rgba(50, 44, 130, 0.5)', backdropFilter: 'blur(8px)', zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
+  return <div style={{ position: 'fixed', inset: 0, background: 'rgba(50, 44, 130, 0.5)', backdropFilter: 'blur(8px)', zIndex: 90, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
     <div ref={panel} role="dialog" aria-modal="true" aria-labelledby="game-result-title" tabIndex={-1} style={{ width: '100%', maxWidth: '480px', maxHeight: 'calc(100dvh - 2rem)', overflowY: 'auto', background: 'var(--color-bg-white)', borderRadius: 'var(--radius-xl)', padding: 'clamp(1rem, 4vw, 2rem)', boxShadow: 'var(--shadow-card)', textAlign: 'center' }}>
       <Trophy size={48} aria-hidden="true" style={{ color: 'var(--color-brand-primary)', margin: '0 auto 1rem' }} />
       <h2 id="game-result-title" style={{ color: 'var(--color-brand-primary)', fontSize: '1.75rem', fontWeight: 900 }}>{result?.isWon ? 'Bạn đã chiến thắng!' : 'Phiên chơi đã kết thúc'}</h2>

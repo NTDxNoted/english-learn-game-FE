@@ -124,7 +124,7 @@ export const TopicActionModal: React.FC<TopicActionModalProps> = ({
         inset: 0,
         backgroundColor: 'rgba(50, 44, 130, 0.5)',
         backdropFilter: 'blur(6px)',
-        zIndex: 50,
+        zIndex: 90,
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',

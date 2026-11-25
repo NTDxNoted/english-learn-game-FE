@@ -1,5 +1,5 @@
 import React from 'react';
-import { ArrowLeft, Camera, ShieldCheck, MousePointer, Sparkles } from 'lucide-react';
+import { ArrowLeft, Camera, ShieldCheck, MousePointer } from 'lucide-react';
 
 interface CameraPermissionGateProps {
   onAllowCamera: () => void;
@@ -19,9 +19,9 @@ export const CameraPermissionGate: React.FC<CameraPermissionGateProps> = ({
       style={{
         position: 'fixed',
         inset: 0,
-        backgroundColor: 'rgba(50, 44, 130, 0.45)',
+        backgroundColor: 'rgba(50, 44, 130, 0.48)',
         backdropFilter: 'blur(6px)',
-        zIndex: 50,
+        zIndex: 90,
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
@@ -29,62 +29,81 @@ export const CameraPermissionGate: React.FC<CameraPermissionGateProps> = ({
       }}
     >
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="camera-gate-title"
         style={{
           width: '100%',
-          maxWidth: '500px',
+          maxWidth: '440px',
+          maxHeight: 'calc(100dvh - 2rem)',
+          overflowY: 'auto',
           backgroundColor: '#ffffff',
           borderRadius: 'var(--radius-xl)',
-          padding: '2.25rem',
+          padding: 'clamp(1.5rem, 3.5vw, 2rem)',
           boxShadow: '0 20px 40px -8px rgba(50, 44, 130, 0.25)',
           textAlign: 'center',
         }}
       >
         <div
           style={{
-            width: '64px',
-            height: '64px',
-            borderRadius: 'var(--radius-lg)',
+            width: '56px',
+            height: '56px',
+            borderRadius: '18px',
             backgroundColor: 'var(--color-pastel-yellow)',
             color: 'var(--color-pastel-yellow-text)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            margin: '0 auto 1.25rem',
+            margin: '0 auto 1rem',
           }}
         >
-          <Camera size={32} />
+          <Camera size={28} />
         </div>
 
-        <h2 style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--color-brand-primary)', marginBottom: '0.5rem' }}>
+        <h2
+          id="camera-gate-title"
+          style={{
+            fontSize: '1.45rem',
+            fontWeight: 800,
+            color: 'var(--color-brand-primary)',
+            marginBottom: '0.4rem',
+          }}
+        >
           Học từ vựng bằng cử chỉ tay
         </h2>
 
-        <p style={{ color: 'var(--color-text-body)', fontSize: '0.95rem', lineHeight: 1.6, marginBottom: '1.5rem' }}>
-          Signly sử dụng camera để theo dõi vị trí bàn tay của bạn, giúp bạn gắp và thả các khối chữ cái trực tiếp trên màn hình.
+        <p
+          style={{
+            color: 'var(--color-text-body)',
+            fontSize: '0.92rem',
+            lineHeight: 1.5,
+            marginBottom: '1rem',
+          }}
+        >
+          Gắp và ghép các khối chữ cái trực tiếp trước camera.
         </p>
 
         <div
           style={{
             backgroundColor: 'var(--color-pastel-mint)',
             border: '1.5px solid var(--color-pastel-mint-border)',
-            borderRadius: 'var(--radius-md)',
-            padding: '0.85rem 1rem',
-            display: 'flex',
+            borderRadius: '999px',
+            padding: '0.5rem 0.95rem',
+            display: 'inline-flex',
             alignItems: 'center',
-            gap: '0.75rem',
-            textAlign: 'left',
+            justifyContent: 'center',
+            gap: '0.45rem',
             color: 'var(--color-pastel-mint-text)',
-            fontSize: '0.85rem',
-            marginBottom: '1.75rem',
+            fontSize: '0.84rem',
+            fontWeight: 700,
+            marginBottom: '1.35rem',
           }}
         >
-          <ShieldCheck size={24} className="shrink-0" />
-          <span>
-            <strong>Bảo mật tuyệt đối:</strong> Luồng video chỉ được xử lý cục bộ trên trình duyệt máy bạn bằng trí tuệ nhân tạo (MediaPipe) và <strong>không bao giờ gửi lên máy chủ</strong>.
-          </span>
+          <ShieldCheck size={17} className="shrink-0" />
+          <span>Bảo mật luồng video riêng tư của người dùng</span>
         </div>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.7rem' }}>
           <button
             type="button"
             className="btn-3d w-full"
@@ -116,7 +135,7 @@ export const CameraPermissionGate: React.FC<CameraPermissionGateProps> = ({
                 alignItems: 'center',
                 justifyContent: 'center',
                 gap: '0.5rem',
-                padding: '0.7rem 1rem',
+                padding: '0.68rem 1rem',
                 borderRadius: 'var(--radius-md)',
                 backgroundColor: '#f5f4fb',
                 border: '1.5px solid rgba(50, 44, 130, 0.14)',
@@ -131,11 +150,6 @@ export const CameraPermissionGate: React.FC<CameraPermissionGateProps> = ({
               <span>Quay về danh sách chủ đề</span>
             </button>
           )}
-        </div>
-
-        <div style={{ marginTop: '1.25rem', fontSize: '0.8rem', color: 'var(--color-text-muted)' }}>
-          <Sparkles size={14} className="inline mr-1" />
-          Bạn có thể thay đổi chế độ điều khiển bất kỳ lúc nào trong khi chơi.
         </div>
       </div>
     </div>

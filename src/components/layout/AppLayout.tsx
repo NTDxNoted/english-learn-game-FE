@@ -21,7 +21,7 @@ export const AppLayout: React.FC = () => {
       <footer className="app-footer">
         <div className="footer-container">
           <p>
-            © {CURRENT_YEAR} Signly — Học tiếng Anh bằng đôi tay. Tương tác cử chỉ MediaPipe &amp; AWS Cloud.
+            © {CURRENT_YEAR} Signly — Học tiếng Anh bằng đôi tay.
           </p>
           <div className="ui-footer-status"><CircleCheck size={16} aria-hidden="true" /><span>Signly · Học từ vựng qua tương tác</span>
           </div>

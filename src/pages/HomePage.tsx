@@ -20,7 +20,7 @@ const LEARNING_STEPS = [
     step: '01',
     title: 'Học theo nhóm 5 từ',
     description:
-      'Làm quen từng đợt 5 từ vựng với hình ảnh minh họa, phiên âm chuẩn IPA và giọng đọc bản xứ từ Amazon Polly.',
+      'Làm quen từng đợt 5 từ vựng với hình ảnh minh họa, phiên âm chuẩn IPA và giọng đọc tự nhiên.',
     icon: Volume2,
     cardClass: 'bg-pastel-lavender',
     badgeColor: 'var(--color-brand-primary)',
@@ -67,7 +67,7 @@ export const HomePage: React.FC = () => {
 
           <p className="hero-desc">
             Khám phá tiếng Anh theo cách thật tự nhiên — học từ vựng theo từng đợt 5 từ, nghe phát âm
-            chuẩn và rèn phản xạ ghép chữ bằng cử chỉ bàn tay (MediaPipe AI) cùng Signly.
+            chuẩn và rèn phản xạ ghép chữ bằng cử chỉ bàn tay cùng Signly.
           </p>
 
           <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', minWidth: 0 }}>
@@ -176,11 +176,10 @@ export const HomePage: React.FC = () => {
                 color: 'var(--color-brand-primary)',
               }}
             >
-              Nhận diện cử chỉ AI
+              Nhận diện cử chỉ tay
             </h3>
             <p style={{ fontSize: '0.9rem', color: 'var(--color-text-body)', lineHeight: 1.5 }}>
-              Tương tác gắp và thả chữ cái trực quan bằng cử chỉ chụm ngón tay trước webcam thông qua
-              MediaPipe Vision.
+              Gắp và thả các khối chữ cái trực quan bằng cử chỉ chụm ngón tay ngay trước camera.
             </p>
           </div>
 
@@ -216,11 +215,10 @@ export const HomePage: React.FC = () => {
                 color: 'var(--color-brand-primary)',
               }}
             >
-              Bảo mật On-Device 100%
+              Bảo mật luồng video
             </h3>
             <p style={{ fontSize: '0.9rem', color: 'var(--color-text-body)', lineHeight: 1.5 }}>
-              Video webcam được xử lý hoàn toàn cục bộ trên máy bạn qua Web Worker, tuyệt đối không
-              gửi frame lên server.
+              Bảo mật luồng video riêng tư của người dùng trong suốt quá trình học tập.
             </p>
           </div>
 
