@@ -3,6 +3,7 @@ import React, { useMemo } from 'react';
 interface AnswerSlotsProps {
   length: number;
   slots: (string | null)[];
+  slotTileIds?: (string | null)[];
   targetedIndex?: number | null;
   statusFeedback?: 'success' | 'error' | null;
   onSlotClick?: (index: number) => void;
@@ -11,6 +12,7 @@ interface AnswerSlotsProps {
 export const AnswerSlots: React.FC<AnswerSlotsProps> = ({
   length,
   slots,
+  slotTileIds,
   targetedIndex = null,
   statusFeedback = null,
   onSlotClick,
@@ -68,10 +70,12 @@ export const AnswerSlots: React.FC<AnswerSlotsProps> = ({
               id={`slot-${index}`}
               type="button"
               data-index={index}
+              data-tile-id={slotTileIds?.[index] || ''}
+              data-letter={letter || ''}
               className={slotClasses}
               onClick={() => onSlotClick?.(index)}
               aria-label={`Ô thứ ${index + 1}: ${letter || 'trống'}. Bấm để xóa chữ`}
-              title={isFilled ? 'Bấm vào ô để gỡ chữ cái này ra' : undefined}
+              title={isFilled ? 'Gắp kéo xuống hoặc bấm vào ô để gỡ chữ cái này ra' : undefined}
             >
               <span>{letter || ''}</span>
               {!isFilled && (
