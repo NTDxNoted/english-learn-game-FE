@@ -26,7 +26,15 @@ export function Modal({ title, children, onClose, busy = false }: { title: strin
     dialog?.showModal();
     return () => { dialog?.close(); };
   }, []);
-  return <dialog className="adm-dialog" style={{ inset: 0, margin: 'auto' }} ref={ref} aria-labelledby={titleId} aria-busy={busy} onCancel={(event) => { event.preventDefault(); if (!busy) onClose(); }}>
+  return <dialog
+    className="adm-dialog"
+    style={{ inset: 0, margin: 'auto' }}
+    ref={ref}
+    aria-labelledby={titleId}
+    aria-busy={busy}
+    onClick={(event) => { if (!busy && event.target === event.currentTarget) onClose(); }}
+    onCancel={(event) => { event.preventDefault(); if (!busy) onClose(); }}
+  >
     <div className="adm-dialog-header"><div><span className="adm-eyebrow">SIGNLY ADMIN</span><h2 id={titleId}>{title}</h2></div><button type="button" className="adm-icon-button" aria-label="Đóng hộp thoại" disabled={busy} onClick={onClose}><X size={20} aria-hidden="true" /></button></div>
     {children}
   </dialog>;

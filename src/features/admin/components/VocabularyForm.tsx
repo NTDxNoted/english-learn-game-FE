@@ -32,13 +32,13 @@ export function VocabularyForm({ topicId, vocabulary, onClose, onSaved }: { topi
   const wordId = `${formId}-word`; const meaningId = `${formId}-meaning`;
   const preview = ipa.data?.ipa ?? (normalized === vocabulary?.word ? vocabulary.ipa : '');
   return <Modal title={vocabulary ? 'Sửa từ vựng' : 'Thêm từ vựng'} busy={save.isPending} onClose={onClose}>
-    <form ref={form} noValidate aria-busy={save.isPending} onSubmit={(event) => {
+    <form className="adm-dialog-form" ref={form} noValidate aria-busy={save.isPending} onSubmit={(event) => {
       event.preventDefault(); const next = validate(); setErrors(next);
       const first = (['word', 'meaningVi'] as const).find((field) => next[field]);
       if (first) { (form.current?.elements.namedItem(first) as HTMLElement | null)?.focus(); return; }
       save.mutate();
-    }}><fieldset disabled={save.isPending} style={{ border: 0, padding: 0, margin: 0 }}>
-      <div className="adm-dialog-body">
+    }}>
+      <div className="adm-dialog-body"><fieldset className="adm-fieldset" disabled={save.isPending}>
         <FormField id={wordId} label="Từ tiếng Anh *" help="Một từ, tối đa 100 ký tự. Có thể dùng dấu nối hoặc dấu nháy như mother-in-law, can't." error={errorFor('word')}>
           <input id={wordId} name="word" autoFocus required maxLength={100} value={word} placeholder="Ví dụ: sugar" spellCheck={false} autoCapitalize="none"
             aria-invalid={!!errorFor('word')} aria-describedby={fieldDescription(wordId, !!errorFor('word'))}
@@ -61,12 +61,13 @@ export function VocabularyForm({ topicId, vocabulary, onClose, onSaved }: { topi
         <p className="adm-form-note"><Info size={16} aria-hidden="true" /><span>IPA và âm thanh được tự động tạo khi thêm hoặc đổi từ tiếng Anh. Tra IPA chỉ là xem trước. Quá trình lưu có thể cần thời gian.</span></p>
         <ErrorNotice error={save.error} />
         {save.isError && <button type="button" onClick={() => void onSaved()}>Tải lại danh sách để kiểm tra kết quả</button>}
-      </div><div className="adm-dialog-actions"><button type="button" onClick={onClose}>Hủy</button>
-        <button type="submit" className="adm-primary" disabled={!changed} aria-busy={save.isPending}>
+      </fieldset></div>
+      <div className="adm-dialog-actions"><button type="button" disabled={save.isPending} onClick={onClose}>Hủy</button>
+        <button type="submit" className="adm-primary btn-3d" disabled={!changed || save.isPending} aria-busy={save.isPending}>
           <span className="adm-button-content"><span className="adm-button-label" style={{ visibility: save.isPending ? 'hidden' : undefined }}><Save size={16} aria-hidden="true" />Lưu từ vựng</span>
             {save.isPending && <span className="adm-button-spinner" role="status" aria-label="Đang lưu từ vựng"><Loader2 size={18} aria-hidden="true" /></span>}</span>
         </button>
       </div>
-    </fieldset></form>
+    </form>
   </Modal>;
 }

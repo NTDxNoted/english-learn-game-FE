@@ -32,12 +32,12 @@ function ConfigForm({ row, topicId, onClose, onSaved }: { row: AdminConfig; topi
   const errorFor = (field: ConfigField) => errors[field] ?? (save.error instanceof ApiError ? save.error.errors.find((error) => error.field === field)?.message : undefined);
   const valueId = `${formId}-value`; const descriptionId = `${formId}-description`;
   return <Modal title={CONFIG_LABELS[row.configKey]} busy={save.isPending} onClose={onClose}>
-    <form ref={form} noValidate aria-busy={save.isPending} onSubmit={(event) => {
+    <form className="adm-dialog-form" ref={form} noValidate aria-busy={save.isPending} onSubmit={(event) => {
       event.preventDefault(); const next = validate(); setErrors(next);
       const first = (['configValue', 'description'] as const).find((field) => next[field]);
       if (first) { (form.current?.elements.namedItem(first) as HTMLElement | null)?.focus(); return; }
       save.mutate();
-    }}><fieldset disabled={save.isPending} style={{ border: 0, margin: 0, padding: 0 }}><div className="adm-dialog-body">
+    }}><div className="adm-dialog-body"><fieldset className="adm-fieldset" disabled={save.isPending}>
       {topicId && <label><span><input type="checkbox" checked={active} onChange={(event) => setActive(event.target.checked)} /> Dùng cấu hình riêng cho chủ đề</span></label>}
       <FormField id={valueId} label={`Giá trị ${boolean ? '(bật / tắt tính năng)' : ''}`.trim()}
         help={boolean ? 'Chọn Bật hoặc Tắt cho tính năng này.' : `Số nguyên từ ${row.configKey === 'max_attempt_per_word' ? '1' : '0'} đến 2.147.483.647.`} error={errorFor('configValue')}>
@@ -53,9 +53,9 @@ function ConfigForm({ row, topicId, onClose, onSaved }: { row: AdminConfig; topi
       </FormField>
       {topicId && !active && <p className="adm-notice"><Info size={20} aria-hidden="true" /><span>Override được lưu nhưng ngừng áp dụng. Chủ đề sẽ dùng cấu hình Global; giá trị override vẫn phải hợp lệ.</span></p>}
       <p className="adm-form-note"><Info size={16} aria-hidden="true" /><span>Chỉ áp dụng cho phiên game tạo mới. Phiên đang chơi giữ cấu hình đã lưu.</span></p><ErrorNotice error={save.error} />
-    </div><div className="adm-dialog-actions"><button type="button" onClick={onClose}>Hủy</button><button type="submit" className="adm-primary" aria-busy={save.isPending}>
+    </fieldset></div><div className="adm-dialog-actions"><button type="button" disabled={save.isPending} onClick={onClose}>Hủy</button><button type="submit" className="adm-primary btn-3d" disabled={save.isPending} aria-busy={save.isPending}>
       <span className="adm-button-content"><span className="adm-button-label"><Save size={16} aria-hidden="true" />Lưu cấu hình</span>{save.isPending && <Loader2 className="adm-button-spinner" size={18} aria-hidden="true" />}</span>
-    </button></div></fieldset></form>
+    </button></div></form>
   </Modal>;
 }
 export function ConfigPage() {

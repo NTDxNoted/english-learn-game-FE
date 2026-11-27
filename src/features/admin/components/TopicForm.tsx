@@ -49,14 +49,14 @@ export function TopicForm({ topic, onClose, onSaved }: { topic?: AdminTopic; onC
   const errorFor = (field: Field) => errors[field] ?? (save.error instanceof ApiError ? save.error.errors.find((error) => error.field === field)?.message : undefined);
   const nameId = `${formId}-name`; const descriptionId = `${formId}-description`; const imageId = `${formId}-image`;
   return <Modal title={topic ? 'Sửa chủ đề' : 'Thêm chủ đề mới'} onClose={onClose} busy={save.isPending}>
-    <form ref={form} noValidate aria-busy={save.isPending} onSubmit={(event) => {
+    <form className="adm-dialog-form" ref={form} noValidate aria-busy={save.isPending} onSubmit={(event) => {
       event.preventDefault();
       const next = validate(); setErrors(next);
       const first = (['name', 'description', 'image'] as const).find((field) => next[field]);
       if (first) { (form.current?.elements.namedItem(first) as HTMLElement | null)?.focus(); return; }
       save.mutate();
     }}>
-      <fieldset disabled={save.isPending} style={{ border: 0, margin: 0, padding: 0 }}><div className="adm-dialog-body">
+      <div className="adm-dialog-body"><fieldset className="adm-fieldset" disabled={save.isPending}>
         <FormField id={nameId} label="Tên chủ đề *" help="Tên dễ nhận biết, tối đa 100 ký tự." error={errorFor('name')}>
           <input id={nameId} name="name" autoFocus required maxLength={100} placeholder="Ví dụ: Food & drinks" value={name}
             aria-invalid={!!errorFor('name')} aria-describedby={fieldDescription(nameId, !!errorFor('name'))}
@@ -74,16 +74,17 @@ export function TopicForm({ topic, onClose, onSaved }: { topic?: AdminTopic; onC
               aria-invalid={!!errorFor('image')} aria-describedby={fieldDescription(imageId, !!errorFor('image'))}
               onChange={(event) => chooseImage(event.target.files?.[0] ?? null)} />
           </FormField>
-          <div className="adm-upload-preview">{preview ? <img className="adm-preview" src={preview} alt="Ảnh xem trước của chủ đề" /> : <><ImagePlus size={28} strokeWidth={1.75} aria-hidden="true" /><span>Ảnh xem trước sẽ hiển thị tại đây</span></>}</div>
+          <div className="adm-upload-preview">{preview ? <img className="adm-preview" src={preview} alt="Ảnh xem trước của chủ đề" /> : <><ImagePlus size={26} strokeWidth={1.75} aria-hidden="true" /><span>Ảnh xem trước sẽ hiển thị tại đây</span></>}</div>
         </div>
         <p className="adm-form-note"><Info size={16} aria-hidden="true" /><span>Thứ tự chủ đề được tự động tạo. Khi sửa, chỉ những nội dung thay đổi được gửi lên.</span></p>
         <ErrorNotice error={save.error} />
-      </div><div className="adm-dialog-actions"><button type="button" onClick={onClose}>Hủy</button>
-        <button type="submit" className="adm-primary" disabled={!changed} aria-busy={save.isPending}>
+      </fieldset></div>
+      <div className="adm-dialog-actions"><button type="button" disabled={save.isPending} onClick={onClose}>Hủy</button>
+        <button type="submit" className="adm-primary btn-3d" disabled={!changed || save.isPending} aria-busy={save.isPending}>
           <span className="adm-button-content"><span className="adm-button-label" style={{ visibility: save.isPending ? 'hidden' : undefined }}><Save size={16} aria-hidden="true" />Lưu chủ đề</span>
             {save.isPending && <span className="adm-button-spinner" role="status" aria-label="Đang lưu chủ đề"><Loader2 size={18} aria-hidden="true" /></span>}</span>
         </button>
-      </div></fieldset>
+      </div>
     </form>
   </Modal>;
 }
