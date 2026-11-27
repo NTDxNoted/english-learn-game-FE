@@ -1,7 +1,8 @@
-﻿import React from 'react';
+import React from 'react';
 import { CircleCheck } from 'lucide-react';
 import { Outlet } from 'react-router-dom';
 import { Header } from './Header';
+import { FloatingStudyBackground } from './FloatingStudyBackground';
 import { ToastContainer } from '../common/Toast';
 
 const CURRENT_YEAR = new Date().getFullYear();
@@ -10,6 +11,7 @@ export const AppLayout: React.FC = () => {
   return (
     <div className="app-shell">
       <a className="skip-link" href="#main-content">Bỏ qua điều hướng</a>
+      <FloatingStudyBackground />
       <Header />
       <main id="main-content" className="app-main-content" tabIndex={-1}>
         <div className="content-container">
