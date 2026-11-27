@@ -10,71 +10,40 @@ import {
   ShieldCheck,
   MousePointer,
   BookOpen,
-  Utensils,
-  Compass,
-  Laptop,
-  Users,
-  PawPrint,
-  Dumbbell,
+  Volume2,
+  Flame,
+  Trophy,
 } from 'lucide-react';
-import { TopicCard } from '../components/common/TopicCard';
 
-const FEATURED_TOPICS = [
+const LEARNING_STEPS = [
   {
-    id: 1,
-    title: 'Đồ ăn & Thức uống',
-    english: 'Food',
-    icon: Utensils,
-    color: 'peach' as const,
-    totalWords: 20,
-    completedWords: 8,
+    step: '01',
+    title: 'Học theo nhóm 5 từ',
+    description:
+      'Làm quen từng đợt 5 từ vựng với hình ảnh minh họa, phiên âm chuẩn IPA và giọng đọc bản xứ từ Amazon Polly.',
+    icon: Volume2,
+    cardClass: 'bg-pastel-lavender',
+    badgeColor: 'var(--color-brand-primary)',
   },
   {
-    id: 2,
-    title: 'Du lịch & Khám phá',
-    english: 'Travel',
-    icon: Compass,
-    color: 'blue' as const,
-    totalWords: 15,
-    completedWords: 5,
+    step: '02',
+    title: 'Ghép chữ bằng đôi tay',
+    description:
+      'Mở webcam chụm ngón tay gắp thả các ô chữ cái ở tốc độ 60fps hoặc dùng chuột dự phòng linh hoạt mọi lúc.',
+    icon: Hand,
+    cardClass: 'bg-pastel-mint',
+    badgeColor: 'var(--color-pastel-mint-text)',
   },
   {
-    id: 3,
-    title: 'Công nghệ thông tin',
-    english: 'Technology',
-    icon: Laptop,
-    color: 'lavender' as const,
-    totalWords: 25,
-    completedWords: 12,
+    step: '03',
+    title: 'Vượt thử thách & giữ Streak',
+    description:
+      'Hoàn thành chế độ CHECKPOINT để tích điểm bảng xếp hạng tuần, duy trì chuỗi ngày học và mở khóa ôn tập REVIEW.',
+    icon: Trophy,
+    cardClass: 'bg-pastel-yellow',
+    badgeColor: 'var(--color-pastel-yellow-text)',
   },
-  {
-    id: 4,
-    title: 'Gia đình & Người thân',
-    english: 'Family',
-    icon: Users,
-    color: 'pink' as const,
-    totalWords: 18,
-    completedWords: 10,
-  },
-  {
-    id: 5,
-    title: 'Thế giới động vật',
-    english: 'Animal',
-    icon: PawPrint,
-    color: 'yellow' as const,
-    totalWords: 22,
-    completedWords: 4,
-  },
-  {
-    id: 7,
-    title: 'Thể thao & Sức khỏe',
-    english: 'Sport',
-    icon: Dumbbell,
-    color: 'blue' as const,
-    totalWords: 14,
-    completedWords: 6,
-  },
-];
+] as const;
 
 export const HomePage: React.FC = () => {
   const navigate = useNavigate();
@@ -97,8 +66,8 @@ export const HomePage: React.FC = () => {
           </h1>
 
           <p className="hero-desc">
-            Khám phá tiếng Anh theo cách thật tự nhiên — học từ vựng qua cử chỉ bàn tay (MediaPipe
-            AI), chơi vui và tiến bộ mỗi ngày cùng hệ thống Signly.
+            Khám phá tiếng Anh theo cách thật tự nhiên — học từ vựng theo từng đợt 5 từ, nghe phát âm
+            chuẩn và rèn phản xạ ghép chữ bằng cử chỉ bàn tay (MediaPipe AI) cùng Signly.
           </p>
 
           <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', minWidth: 0 }}>
@@ -113,14 +82,10 @@ export const HomePage: React.FC = () => {
             </button>
           </div>
 
-          {/* Social Proof */}
+          {/* Workflow Highlights (Không dùng số liệu giả lập) */}
           <div className="avatar-stack-row" style={{ marginTop: '2rem' }}>
-            <div className="avatar-dots">
-              <span className="avatar-dot bg-dot-1" />
-              <span className="avatar-dot bg-dot-2" />
-              <span className="avatar-dot bg-dot-3" />
-            </div>
-            <span>Được yêu thích bởi hơn 2,000+ người học</span>
+            <Flame size={18} color="var(--color-brand-accent)" />
+            <span>Lộ trình 5 từ/đợt · 3 chế độ chơi (FREE_PLAY · CHECKPOINT · REVIEW)</span>
           </div>
         </div>
 
@@ -148,10 +113,26 @@ export const HomePage: React.FC = () => {
       {/* Feature Highlights Grid */}
       <section style={{ marginTop: '5rem', marginBottom: '4rem' }}>
         <div style={{ textAlign: 'center', maxWidth: '640px', margin: '0 auto 2.5rem' }}>
-          <div style={{ fontSize: '0.825rem', fontWeight: 800, color: 'var(--color-brand-accent)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '0.5rem' }}>
+          <div
+            style={{
+              fontSize: '0.825rem',
+              fontWeight: 800,
+              color: 'var(--color-brand-accent)',
+              textTransform: 'uppercase',
+              letterSpacing: '0.08em',
+              marginBottom: '0.5rem',
+            }}
+          >
             Trải nghiệm học tập thế hệ mới
           </div>
-          <h2 style={{ fontFamily: 'var(--font-display)', fontSize: '2rem', fontWeight: 800, color: 'var(--color-brand-primary)' }}>
+          <h2
+            style={{
+              fontFamily: 'var(--font-display)',
+              fontSize: '2rem',
+              fontWeight: 800,
+              color: 'var(--color-brand-primary)',
+            }}
+          >
             Tại sao nên học tiếng Anh cùng Signly?
           </h2>
         </div>
@@ -165,103 +146,286 @@ export const HomePage: React.FC = () => {
         >
           <div
             className="card-pastel bg-pastel-lavender"
-            style={{ padding: '1.75rem', borderRadius: '24px', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}
+            style={{
+              padding: '1.75rem',
+              borderRadius: '24px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '0.75rem',
+            }}
           >
-            <div style={{ width: '48px', height: '48px', borderRadius: '14px', backgroundColor: 'var(--color-bg-white)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-brand-primary)' }}>
+            <div
+              style={{
+                width: '48px',
+                height: '48px',
+                borderRadius: '14px',
+                backgroundColor: 'var(--color-bg-white)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: 'var(--color-brand-primary)',
+              }}
+            >
               <Camera size={26} />
             </div>
-            <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '1.2rem', fontWeight: 800, color: 'var(--color-brand-primary)' }}>
+            <h3
+              style={{
+                fontFamily: 'var(--font-display)',
+                fontSize: '1.2rem',
+                fontWeight: 800,
+                color: 'var(--color-brand-primary)',
+              }}
+            >
               Nhận diện cử chỉ AI
             </h3>
             <p style={{ fontSize: '0.9rem', color: 'var(--color-text-body)', lineHeight: 1.5 }}>
-              Tương tác gắp và thả chữ cái trực quan bằng cử chỉ chụm ngón tay trước webcam thông qua MediaPipe Vision.
+              Tương tác gắp và thả chữ cái trực quan bằng cử chỉ chụm ngón tay trước webcam thông qua
+              MediaPipe Vision.
             </p>
           </div>
 
           <div
             className="card-pastel bg-pastel-mint"
-            style={{ padding: '1.75rem', borderRadius: '24px', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}
+            style={{
+              padding: '1.75rem',
+              borderRadius: '24px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '0.75rem',
+            }}
           >
-            <div style={{ width: '48px', height: '48px', borderRadius: '14px', backgroundColor: 'var(--color-bg-white)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-pastel-mint-text)' }}>
+            <div
+              style={{
+                width: '48px',
+                height: '48px',
+                borderRadius: '14px',
+                backgroundColor: 'var(--color-bg-white)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: 'var(--color-pastel-mint-text)',
+              }}
+            >
               <ShieldCheck size={26} />
             </div>
-            <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '1.2rem', fontWeight: 800, color: 'var(--color-brand-primary)' }}>
+            <h3
+              style={{
+                fontFamily: 'var(--font-display)',
+                fontSize: '1.2rem',
+                fontWeight: 800,
+                color: 'var(--color-brand-primary)',
+              }}
+            >
               Bảo mật On-Device 100%
             </h3>
             <p style={{ fontSize: '0.9rem', color: 'var(--color-text-body)', lineHeight: 1.5 }}>
-              Video webcam được xử lý hoàn toàn cục bộ trên máy bạn qua Web Worker, tuyệt đối không gửi frame lên server.
+              Video webcam được xử lý hoàn toàn cục bộ trên máy bạn qua Web Worker, tuyệt đối không
+              gửi frame lên server.
             </p>
           </div>
 
           <div
             className="card-pastel bg-pastel-yellow"
-            style={{ padding: '1.75rem', borderRadius: '24px', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}
+            style={{
+              padding: '1.75rem',
+              borderRadius: '24px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '0.75rem',
+            }}
           >
-            <div style={{ width: '48px', height: '48px', borderRadius: '14px', backgroundColor: 'var(--color-bg-white)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-pastel-yellow-text)' }}>
+            <div
+              style={{
+                width: '48px',
+                height: '48px',
+                borderRadius: '14px',
+                backgroundColor: 'var(--color-bg-white)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: 'var(--color-pastel-yellow-text)',
+              }}
+            >
               <BookOpen size={26} />
             </div>
-            <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '1.2rem', fontWeight: 800, color: 'var(--color-brand-primary)' }}>
-              10 Chủ đề Thực tế
+            <h3
+              style={{
+                fontFamily: 'var(--font-display)',
+                fontSize: '1.2rem',
+                fontWeight: 800,
+                color: 'var(--color-brand-primary)',
+              }}
+            >
+              Chủ đề Mở rộng Linh hoạt
             </h3>
             <p style={{ fontSize: '0.9rem', color: 'var(--color-text-body)', lineHeight: 1.5 }}>
-              Học từ vựng theo chủ đề đời sống thiết thực (Đồ ăn, Du lịch, Gia đình, Thể thao...) kèm phát âm bản ngữ.
+              Kho chủ đề đời sống được cập nhật liên tục từ hệ thống quản trị, đi kèm phiên âm IPA và
+              phát âm tiếng Anh chuẩn bản xứ.
             </p>
           </div>
 
           <div
             className="card-pastel bg-pastel-peach"
-            style={{ padding: '1.75rem', borderRadius: '24px', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}
+            style={{
+              padding: '1.75rem',
+              borderRadius: '24px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '0.75rem',
+            }}
           >
-            <div style={{ width: '48px', height: '48px', borderRadius: '14px', backgroundColor: 'var(--color-bg-white)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-pastel-peach-text)' }}>
+            <div
+              style={{
+                width: '48px',
+                height: '48px',
+                borderRadius: '14px',
+                backgroundColor: 'var(--color-bg-white)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: 'var(--color-pastel-peach-text)',
+              }}
+            >
               <MousePointer size={26} />
             </div>
-            <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '1.2rem', fontWeight: 800, color: 'var(--color-brand-primary)' }}>
+            <h3
+              style={{
+                fontFamily: 'var(--font-display)',
+                fontSize: '1.2rem',
+                fontWeight: 800,
+                color: 'var(--color-brand-primary)',
+              }}
+            >
               Chế độ Chuột Dự phòng
             </h3>
             <p style={{ fontSize: '0.9rem', color: 'var(--color-text-body)', lineHeight: 1.5 }}>
-              Linh hoạt kéo thả bằng chuột hoặc chạm cảm ứng nếu máy tính không có camera hoặc điều kiện ánh sáng yếu.
+              Linh hoạt kéo thả bằng chuột hoặc chạm cảm ứng nếu máy tính không có camera hoặc điều
+              kiện ánh sáng yếu.
             </p>
           </div>
         </div>
       </section>
 
-      {/* Featured Topics Section */}
+      {/* 3-Step Learning Loop (Thay thế phần hardcode chủ đề & % tiến độ giả) */}
       <section style={{ marginTop: '4rem' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '2rem', flexWrap: 'wrap', gap: '1rem' }}>
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'flex-end',
+            marginBottom: '2rem',
+            flexWrap: 'wrap',
+            gap: '1rem',
+          }}
+        >
           <div>
-            <div style={{ fontSize: '0.825rem', fontWeight: 800, color: 'var(--color-brand-accent)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '0.35rem' }}>
-              Chủ đề học tập
+            <div
+              style={{
+                fontSize: '0.825rem',
+                fontWeight: 800,
+                color: 'var(--color-brand-accent)',
+                textTransform: 'uppercase',
+                letterSpacing: '0.08em',
+                marginBottom: '0.35rem',
+              }}
+            >
+              Cách thức hoạt động
             </div>
-            <h2 style={{ fontFamily: 'var(--font-display)', fontSize: '1.85rem', fontWeight: 800, color: 'var(--color-brand-primary)' }}>
-              Chọn chủ đề bạn yêu thích
+            <h2
+              style={{
+                fontFamily: 'var(--font-display)',
+                fontSize: '1.85rem',
+                fontWeight: 800,
+                color: 'var(--color-brand-primary)',
+              }}
+            >
+              Làm chủ từ vựng qua 3 bước đơn giản
             </h2>
           </div>
 
           <button
             type="button"
             onClick={() => navigate('/topics')}
-            className="btn-ghost"
-            style={{ fontWeight: 800, color: 'var(--color-brand-primary)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}
+            className="btn-outline"
+            style={{
+              fontWeight: 800,
+              backgroundColor: 'var(--color-bg-white)',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+            }}
           >
-            <span>Xem tất cả 10 chủ đề</span>
+            <span>Khám phá các chủ đề</span>
             <ArrowRight size={18} />
           </button>
         </div>
 
         <div className="cards-grid-3">
-          {FEATURED_TOPICS.map((item, i) => (
-            <TopicCard
-              key={item.id}
-              title={item.title}
-              english={item.english}
-              icon={item.icon}
-              color={item.color}
-              totalWords={item.totalWords}
-              completedWords={item.completedWords}
-              index={i}
-              onClick={() => navigate(`/topics?select=${item.id}`)}
-            />
-          ))}
+          {LEARNING_STEPS.map((item) => {
+            const StepIcon = item.icon;
+            return (
+              <div
+                key={item.step}
+                className={`card-pastel ${item.cardClass}`}
+                style={{
+                  padding: '1.75rem',
+                  borderRadius: '24px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '0.85rem',
+                }}
+              >
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                  }}
+                >
+                  <div
+                    style={{
+                      width: '48px',
+                      height: '48px',
+                      borderRadius: '14px',
+                      backgroundColor: 'var(--color-bg-white)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      color: item.badgeColor,
+                    }}
+                  >
+                    <StepIcon size={24} />
+                  </div>
+                  <span
+                    style={{
+                      fontFamily: 'var(--font-display)',
+                      fontSize: '1.5rem',
+                      fontWeight: 900,
+                      color: item.badgeColor,
+                      opacity: 0.45,
+                      fontVariantNumeric: 'tabular-nums',
+                    }}
+                  >
+                    {item.step}
+                  </span>
+                </div>
+
+                <h3
+                  style={{
+                    fontFamily: 'var(--font-display)',
+                    fontSize: '1.22rem',
+                    fontWeight: 800,
+                    color: 'var(--color-brand-primary)',
+                  }}
+                >
+                  {item.title}
+                </h3>
+                <p style={{ fontSize: '0.92rem', color: 'var(--color-text-body)', lineHeight: 1.6 }}>
+                  {item.description}
+                </p>
+              </div>
+            );
+          })}
         </div>
       </section>
     </div>
