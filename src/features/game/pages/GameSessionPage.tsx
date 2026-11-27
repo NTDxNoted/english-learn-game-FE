@@ -65,6 +65,28 @@ export function WordBoard({ session, word, sessionScore, isSyncing, onAttempt, o
   useEffect(() => {
     onTileDropRegister((drop) => {
       if (isLocked || busy.current) return;
+      if (typeof drop.fromSlotIndex === 'number' && drop.fromSlotIndex >= 0) {
+        setPlacedSlots((previous) => {
+          const fromIdx = drop.fromSlotIndex!;
+          if (fromIdx < 0 || fromIdx >= previous.length) return previous;
+          const moving = previous[fromIdx];
+          if (!moving) return previous;
+          const next = [...previous];
+          // Kéo ngược từ ô đáp án xuống kho chữ hoặc thả ngoài các ô khác -> trả chữ về kho
+          if (drop.slotIndex < 0 || drop.slotIndex >= previous.length || drop.slotIndex === fromIdx) {
+            next[fromIdx] = null;
+            return next;
+          }
+          // Kéo sang một ô đáp án khác -> di chuyển hoặc hoán đổi vị trí 2 chữ cái
+          const displaced = next[drop.slotIndex];
+          next[drop.slotIndex] = moving;
+          next[fromIdx] = displaced ?? null;
+          return next;
+        });
+        setStatusFeedback(null);
+        return;
+      }
+
       const tileIndex = word.letters.findIndex((letter, index) => `${word.vocabId}-${index}` === drop.tileId && letter === drop.letter);
       if (tileIndex < 0) return;
       setPlacedSlots((previous) => {
@@ -162,8 +184,8 @@ export function WordBoard({ session, word, sessionScore, isSyncing, onAttempt, o
   return <>
     <WordClueCard meaningVi={word.meaningVi} ipa={word.ipa} wordLength={word.wordLength} onSpeak={speak} hasAudio={Boolean(word.audioUrl?.trim())} isSpeaking={isSpeaking} />
     <div style={{ marginTop: '2rem', textAlign: 'center' }}>
-      <p style={{ fontWeight: 800 }}>ĐẶT CHỮ CÁI VÀO ĐÚNG Ô (BẤM VÀO Ô ĐỂ GỠ)</p>
-      <AnswerSlots length={word.wordLength} slots={placedSlots.map((slot) => slot?.letter ?? null)} statusFeedback={statusFeedback} onSlotClick={handleSlotClick} />
+      <p style={{ fontWeight: 800 }}>ĐẶT CHỮ CÁI VÀO ĐÚNG Ô (GẮP KÉO XUỐNG HOẶC BẤM VÀO Ô ĐỂ GỠ)</p>
+      <AnswerSlots length={word.wordLength} slots={placedSlots.map((slot) => slot?.letter ?? null)} slotTileIds={placedSlots.map((slot) => slot?.tileId ?? null)} statusFeedback={statusFeedback} onSlotClick={handleSlotClick} />
     </div>
     <div style={{ marginTop: '1.5rem' }}>
       <p style={{ fontWeight: 800, textAlign: 'center', marginBottom: '0.75rem' }}>KHO CHỮ CÁI (DÙNG TAY GẮP HOẶC KÉO CHUỘT)</p>
@@ -175,7 +197,7 @@ export function WordBoard({ session, word, sessionScore, isSyncing, onAttempt, o
       </div>
     </div>
     <GameControlBar canSubmit={isAllFilled && !isLocked && attemptsLeft > 0} isSubmitting={isSubmitting} isLocked={isLocked} attemptsLeft={attemptsLeft} maxAttempts={session.maxAttemptPerWord} sessionScore={sessionScore} feedbackMessage={feedback?.message} feedbackType={feedback?.type} onConfirm={handleConfirmWord} onReset={handleResetSlots} />
-    {needsSync && <button type="button" className="btn-outline" disabled={isSyncing} onClick={() => void onRecover()} style={{ marginTop: '1rem' }}>{isSyncing ? 'Đang đồng bộ...' : 'Đồng bộ phiên để tiếp tục'}</button>}
+    {needsSync && <button type="button" className="btn-outline" data-gesture-hold="sync" data-gesture-label="Đồng bộ phiên" disabled={isSyncing} onClick={() => void onRecover()} style={{ marginTop: '1rem' }}>{isSyncing ? 'Đang đồng bộ...' : 'Đồng bộ phiên để tiếp tục'}</button>}
   </>;
 }
 
