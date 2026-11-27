@@ -84,6 +84,10 @@
   padding: 0;
 }
 
+dialog {
+  margin: auto;
+}
+
 body {
   font-family: var(--font-body);
   background-color: var(--color-bg-canvas);
