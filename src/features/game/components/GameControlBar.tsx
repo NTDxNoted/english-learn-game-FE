@@ -77,6 +77,8 @@ export const GameControlBar: React.FC<GameControlBarProps> = ({
           type="button"
           onClick={onReset}
           disabled={isSubmitting || isLocked}
+          data-gesture-hold="reset"
+          data-gesture-label="Xóa làm lại"
           className="btn-outline"
           style={{ justifyContent: 'center' }}
         >
@@ -88,6 +90,8 @@ export const GameControlBar: React.FC<GameControlBarProps> = ({
           type="button"
           onClick={onConfirm}
           disabled={!canSubmit || isSubmitting}
+          data-gesture-hold="confirm"
+          data-gesture-label="Xác nhận từ"
           className="btn-3d"
           style={{
             justifyContent: 'center',

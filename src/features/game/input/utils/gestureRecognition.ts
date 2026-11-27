@@ -175,13 +175,13 @@ export function projectNormalizedHandToScreen(
     ),
   );
 
-  const baseSpanPx = Math.max(54, Math.min(72, Math.min(width, height) * 0.076));
-  const depthBreath = Math.max(0.9, Math.min(1.12, rawSpan / 0.16));
+  const baseSpanPx = Math.max(92, Math.min(126, Math.min(width, height) * 0.128));
+  const depthBreath = Math.max(0.9, Math.min(1.14, rawSpan / 0.16));
   const scalePx = (baseSpanPx * depthBreath) / rawSpan;
 
   return landmarks.map((pt) => ({
-    x: Math.max(-48, Math.min(width + 48, anchorScreen.x - (pt.x - anchorNorm.x) * scalePx)),
-    y: Math.max(-48, Math.min(height + 48, anchorScreen.y + (pt.y - anchorNorm.y) * aspectY * scalePx)),
+    x: Math.max(-84, Math.min(width + 84, anchorScreen.x - (pt.x - anchorNorm.x) * scalePx)),
+    y: Math.max(-84, Math.min(height + 84, anchorScreen.y + (pt.y - anchorNorm.y) * aspectY * scalePx)),
   }));
 }
 
@@ -292,11 +292,13 @@ export function advanceGrip(
   state: GripTargetState,
   landmarks: Point[],
   _hasDrag: boolean = false,
+  isHoldingAction: boolean = false,
 ): { started?: Gesture; ended?: Gesture; opening?: boolean } {
   if (state.heldGesture) {
     const opening = grabReleased(landmarks, state.heldGesture);
     state.openFrames = opening ? state.openFrames + 1 : 0;
-    if (state.openFrames >= 2) {
+    const requiredOpenFrames = isHoldingAction ? 4 : 2;
+    if (state.openFrames >= requiredOpenFrames) {
       const ended = state.heldGesture;
       state.heldGesture = null;
       state.readyPair = null;

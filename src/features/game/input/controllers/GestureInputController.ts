@@ -20,6 +20,22 @@ export interface HandDragItem {
   tile: HTMLElement;
   tileId: string;
   letter: string;
+  fromSlotIndex?: number;
+}
+
+export interface HandButtonHold {
+  button: HTMLButtonElement;
+  label: string;
+  startedAt: number;
+  durationMs: number;
+  progress: number;
+}
+
+interface ClickRippleEffect {
+  x: number;
+  y: number;
+  startedAt: number;
+  color: string;
 }
 
 export interface HandRuntimeState extends GripTargetState {
@@ -35,6 +51,7 @@ export interface HandRuntimeState extends GripTargetState {
   tracking: TrackingState | null;
   dropPoint: Point | null;
   drag: HandDragItem | null;
+  buttonHold: HandButtonHold | null;
   pinchProgress: number;
 }
 
@@ -64,7 +81,7 @@ const glovePalettes = [
     pad: '#211c61',
     accent: '#ff7b62',
     glow: '#ffdcd4',
-    ringTrack: 'rgba(50, 44, 130, 0.22)',
+    ringTrack: 'rgba(50, 44, 130, 0.24)',
   },
   {
     fabricTop: '#ffffff',
@@ -75,17 +92,24 @@ const glovePalettes = [
     pad: '#134e3a',
     accent: '#10b981',
     glow: '#a3e4cb',
-    ringTrack: 'rgba(25, 99, 75, 0.22)',
+    ringTrack: 'rgba(25, 99, 75, 0.24)',
   },
 ] as const;
 
-const CAPTURE_MIN_INTERVAL_MS = 14; // Cho phép tới ~60–70 FPS camera thực tế
+const CAPTURE_MIN_INTERVAL_MS = 14;
 const BITMAP_TARGET_WIDTH = 320;
 const BITMAP_TARGET_HEIGHT = 240;
 const CONTROL_CACHE_TTL_MS = 90;
+export const BUTTON_HOLD_DURATION_MS = 2200; // Chụm giữ 2.2 giây trên nút sẽ tự động nhấn
 
 const clamp = (v: number, min: number, max: number) => Math.max(min, Math.min(max, v));
 const pointDistance = (a: Point, b: Point) => Math.hypot(a.x - b.x, a.y - b.y);
+
+function isPointNearRect(rect: DOMRect, x: number, y: number, padding: number): boolean {
+  const dx = Math.max(rect.left - x, 0, x - rect.right);
+  const dy = Math.max(rect.top - y, 0, y - rect.bottom);
+  return Math.hypot(dx, dy) <= padding;
+}
 
 function traceRoundedPolygon(context: CanvasRenderingContext2D, points: Point[]): void {
   if (points.length < 3) return;
@@ -115,11 +139,6 @@ function traceSmoothFingerChain(context: CanvasRenderingContext2D, chain: Point[
   context.lineTo(last.x, last.y);
 }
 
-/**
- * Xây dựng đa giác lòng bàn tay giải phẫu liền mạch:
- * - Sửa triệt để lỗi ngược dấu vector `across` gây xoắn hình số 8 ở cổ tay.
- * - Nối liền bầu ngón cái (CMC 1 -> MCP 2) vào lòng bàn tay để ngón cái không bị đứt rời.
- */
 export function buildAnatomicalPalmOutline(points: Point[], palmSpan: number): {
   palmOutline: Point[];
   cuffCorners: Point[];
@@ -127,7 +146,6 @@ export function buildAnatomicalPalmOutline(points: Point[], palmSpan: number): {
 } {
   const wrist = points[0];
   const rawAcrossLen = Math.max(1, pointDistance(points[5], points[17]));
-  // Vector đơn vị hướng từ phía ngón Trỏ (5) sang phía ngón Út (17)
   const across = {
     x: (points[17].x - points[5].x) / rawAcrossLen,
     y: (points[17].y - points[5].y) / rawAcrossLen,
@@ -143,7 +161,6 @@ export function buildAnatomicalPalmOutline(points: Point[], palmSpan: number): {
     y: (knucklesCenter.y - wrist.y) / upLen,
   };
 
-  // Mép cổ tay phía ngón Cái/Trỏ (-across) và phía ngón Út (+across) — cùng phía, không bao giờ tự cắt!
   const wristThumbSide = {
     x: wrist.x - across.x * (palmSpan * 0.31) - upAxis.x * (palmSpan * 0.03),
     y: wrist.y - across.y * (palmSpan * 0.31) - upAxis.y * (palmSpan * 0.03),
@@ -226,16 +243,20 @@ export class GestureInputController implements InputController {
   private handVisualDirty = false;
   private handMissUntil = 0;
 
-  // Đo FPS nhận diện AI thực tế (không đếm nhầm tần số quét màn hình 144Hz)
   private inferenceFrames = 0;
   private lastFpsCheck = 0;
 
-  // Bộ nhớ đệm tọa độ DOM để tránh layout reflow 144 lần/giây
   private cachedTiles: CachedControl[] = [];
   private cachedSlots: CachedControl[] = [];
+  private cachedActionButtons: CachedControl[] = [];
+  private tilesContainerEl: HTMLElement | null = null;
+  private tilesContainerRect: DOMRect | null = null;
   private controlCacheAt = 0;
+
   private hoveredTiles: [HTMLElement | null, HTMLElement | null] = [null, null];
   private targetedSlots: [HTMLElement | null, HTMLElement | null] = [null, null];
+  private hoveredButtons: [HTMLElement | null, HTMLElement | null] = [null, null];
+  private clickRipples: ClickRippleEffect[] = [];
 
   private handStates: HandRuntimeState[] = [
     this.createHandState(0),
@@ -302,6 +323,7 @@ export class GestureInputController implements InputController {
       openFrames: 0,
       dropPoint: null,
       drag: null,
+      buttonHold: null,
       pinchProgress: 0,
     };
   }
@@ -360,6 +382,7 @@ export class GestureInputController implements InputController {
       this.inferenceFrames = 0;
       this.handVisualDirty = false;
       this.handMissUntil = 0;
+      this.clickRipples = [];
       this.invalidateControlCache();
 
       this.resizeCanvas();
@@ -406,6 +429,7 @@ export class GestureInputController implements InputController {
       this.resetHand(state);
     });
 
+    this.clickRipples = [];
     this.clearAllHighlights();
     this.invalidateControlCache();
 
@@ -426,6 +450,9 @@ export class GestureInputController implements InputController {
     this.controlCacheAt = 0;
     this.cachedTiles = [];
     this.cachedSlots = [];
+    this.cachedActionButtons = [];
+    this.tilesContainerEl = null;
+    this.tilesContainerRect = null;
   }
 
   private refreshControlCacheIfNeeded(now: number): void {
@@ -434,7 +461,8 @@ export class GestureInputController implements InputController {
       this.controlCacheAt > 0 &&
       now - this.controlCacheAt < CONTROL_CACHE_TTL_MS &&
       this.cachedTiles.every((item) => item.element.isConnected) &&
-      this.cachedSlots.every((item) => item.element.isConnected)
+      this.cachedSlots.every((item) => item.element.isConnected) &&
+      this.cachedActionButtons.every((item) => item.element.isConnected)
     ) {
       return;
     }
@@ -444,18 +472,59 @@ export class GestureInputController implements InputController {
     ).map((element) => ({ element, rect: element.getBoundingClientRect() }));
 
     this.cachedSlots = Array.from(
-      document.querySelectorAll<HTMLElement>('.game-slot:not(.filled)'),
+      document.querySelectorAll<HTMLElement>('.game-slot'),
     ).map((element) => ({ element, rect: element.getBoundingClientRect() }));
+
+    this.cachedActionButtons = Array.from(
+      document.querySelectorAll<HTMLButtonElement>('button[data-gesture-hold]:not(:disabled)'),
+    ).map((element) => ({ element, rect: element.getBoundingClientRect() }));
+
+    this.tilesContainerEl = document.querySelector<HTMLElement>('.tiles-container');
+    this.tilesContainerRect = this.tilesContainerEl?.getBoundingClientRect() ?? null;
   }
 
-  private findNearestCachedTile(x: number, y: number, padding: number, now: number): HTMLElement | null {
+  private findNearestGrabSource(x: number, y: number, padding: number, now: number): HTMLElement | null {
     this.refreshControlCacheIfNeeded(now);
-    const available = this.cachedTiles.filter(
+    const availableTiles = this.cachedTiles.filter(
       (item) =>
         item.element.isConnected &&
         !item.element.classList.contains('used') &&
         !item.element.classList.contains('drag-source'),
     );
+    const availableFilledSlots = this.cachedSlots.filter(
+      (item) =>
+        item.element.isConnected &&
+        item.element.classList.contains('filled') &&
+        !item.element.classList.contains('drag-source'),
+    );
+    const combined = [...availableTiles, ...availableFilledSlots];
+    if (!combined.length) return null;
+    const idx = nearestRectIndex(
+      combined.map((item) => item.rect),
+      x,
+      y,
+      padding,
+    );
+    return idx < 0 ? null : combined[idx].element;
+  }
+
+  private findNearestDropSlot(
+    x: number,
+    y: number,
+    padding: number,
+    now: number,
+    fromSlotIndex?: number,
+  ): HTMLElement | null {
+    this.refreshControlCacheIfNeeded(now);
+    const available = this.cachedSlots.filter((item) => {
+      if (!item.element.isConnected) return false;
+      const slotIdx = parseInt(item.element.dataset.index || '-1', 10);
+      // Khi đang kéo từ 1 ô đáp án, cho phép thả sang ô trống hoặc hoán đổi với 1 ô khác (khác ô gốc)
+      if (typeof fromSlotIndex === 'number' && fromSlotIndex >= 0) {
+        return slotIdx >= 0 && slotIdx !== fromSlotIndex;
+      }
+      return !item.element.classList.contains('filled');
+    });
     if (!available.length) return null;
     const idx = nearestRectIndex(
       available.map((item) => item.rect),
@@ -466,10 +535,15 @@ export class GestureInputController implements InputController {
     return idx < 0 ? null : available[idx].element;
   }
 
-  private findNearestCachedSlot(x: number, y: number, padding: number, now: number): HTMLElement | null {
+  private findNearestActionButton(
+    x: number,
+    y: number,
+    padding: number,
+    now: number,
+  ): HTMLButtonElement | null {
     this.refreshControlCacheIfNeeded(now);
-    const available = this.cachedSlots.filter(
-      (item) => item.element.isConnected && !item.element.classList.contains('filled'),
+    const available = this.cachedActionButtons.filter(
+      (item) => item.element.isConnected && !(item.element as HTMLButtonElement).disabled,
     );
     if (!available.length) return null;
     const idx = nearestRectIndex(
@@ -478,39 +552,58 @@ export class GestureInputController implements InputController {
       y,
       padding,
     );
-    return idx < 0 ? null : available[idx].element;
+    return idx < 0 ? null : (available[idx].element as HTMLButtonElement);
   }
 
   private updateHandHighlight(
     handId: number,
-    nextTile: HTMLElement | null,
-    nextSlot: HTMLElement | null,
+    nextTileOrFilledSlot: HTMLElement | null,
+    nextTargetSlot: HTMLElement | null,
+    nextActionButton: HTMLElement | null,
   ): void {
     const prevTile = this.hoveredTiles[handId];
-    if (prevTile !== nextTile) {
+    if (prevTile !== nextTileOrFilledSlot) {
       prevTile?.classList.remove(`hand-hover-${handId}`);
-      nextTile?.classList.add(`hand-hover-${handId}`);
-      this.hoveredTiles[handId] = nextTile;
+      nextTileOrFilledSlot?.classList.add(`hand-hover-${handId}`);
+      this.hoveredTiles[handId] = nextTileOrFilledSlot;
     }
 
     const prevSlot = this.targetedSlots[handId];
-    if (prevSlot !== nextSlot) {
+    if (prevSlot !== nextTargetSlot) {
       prevSlot?.classList.remove(`hand-target-${handId}`);
-      nextSlot?.classList.add(`hand-target-${handId}`);
-      this.targetedSlots[handId] = nextSlot;
+      nextTargetSlot?.classList.add(`hand-target-${handId}`);
+      this.targetedSlots[handId] = nextTargetSlot;
     }
+
+    const prevBtn = this.hoveredButtons[handId];
+    if (prevBtn !== nextActionButton) {
+      prevBtn?.classList.remove('hand-button-hover');
+      nextActionButton?.classList.add('hand-button-hover');
+      this.hoveredButtons[handId] = nextActionButton;
+    }
+  }
+
+  private updateReturnPoolHighlight(isReturningToPool: boolean): void {
+    if (!this.tilesContainerEl && typeof document !== 'undefined') {
+      this.tilesContainerEl = document.querySelector<HTMLElement>('.tiles-container');
+    }
+    this.tilesContainerEl?.classList.toggle('hand-return-target', isReturningToPool);
   }
 
   private clearAllHighlights(): void {
     for (let id = 0; id < 2; id++) {
-      this.updateHandHighlight(id, null, null);
+      this.updateHandHighlight(id, null, null, null);
     }
+    this.updateReturnPoolHighlight(false);
     if (typeof document !== 'undefined') {
       document.querySelectorAll<HTMLElement>('.game-slot').forEach((slot) => {
-        slot.classList.remove('hand-target-0', 'hand-target-1');
+        slot.classList.remove('hand-target-0', 'hand-target-1', 'hand-hover-0', 'hand-hover-1', 'drag-source');
       });
       document.querySelectorAll<HTMLElement>('.game-tile').forEach((tile) => {
         tile.classList.remove('hand-hover-0', 'hand-hover-1', 'drag-source');
+      });
+      document.querySelectorAll<HTMLElement>('button[data-gesture-hold]').forEach((btn) => {
+        btn.classList.remove('hand-button-hover', 'hand-button-holding');
       });
     }
   }
@@ -569,44 +662,52 @@ export class GestureInputController implements InputController {
     return gesturePoint(state.visualLandmarks || state.targetLandmarks, state.heldGesture);
   }
 
-  private beginHandDrag(state: HandRuntimeState): boolean {
-    const point = gesturePoint(state.targetLandmarks, state.heldGesture);
-    if (!point) return false;
-
-    const now = performance.now();
-    this.invalidateControlCache();
-
+  private anchorCandidates(state: HandRuntimeState): Point[] {
     const screenW = window.innerWidth;
     const screenH = window.innerHeight;
     const measuredLandmarks = state.tracking?.raw
       ? projectNormalizedHandToScreen(state.tracking.raw, screenW, screenH)
       : null;
 
-    const points: Point[] = [
+    return [
       ...grabPoints(state.targetLandmarks, state.heldGesture),
       ...(measuredLandmarks ? grabPoints(measuredLandmarks, state.heldGesture) : []),
     ];
+  }
 
-    const padding = 42;
-    let foundTile: HTMLElement | null = null;
+  private beginHandDrag(state: HandRuntimeState, now: number): boolean {
+    const point = gesturePoint(state.targetLandmarks, state.heldGesture);
+    if (!point) return false;
+
+    this.invalidateControlCache();
+    const points = this.anchorCandidates(state);
+    const padding = 44;
+
+    let foundEl: HTMLElement | null = null;
     for (const anchor of points) {
-      const tile = this.findNearestCachedTile(anchor.x, anchor.y, padding, now);
-      if (tile) {
-        foundTile = tile;
+      const candidate = this.findNearestGrabSource(anchor.x, anchor.y, padding, now);
+      if (candidate) {
+        foundEl = candidate;
         break;
       }
     }
 
-    if (!foundTile || foundTile.classList.contains('used') || foundTile.classList.contains('drag-source')) {
+    if (!foundEl || foundEl.classList.contains('used') || foundEl.classList.contains('drag-source')) {
       return false;
     }
 
-    const tileId = foundTile.dataset.id || '';
-    const letter = foundTile.dataset.letter || foundTile.textContent?.trim() || '';
+    const isFromFilledSlot = foundEl.classList.contains('game-slot') && foundEl.classList.contains('filled');
+    const fromSlotIndex = isFromFilledSlot ? parseInt(foundEl.dataset.index || '-1', 10) : undefined;
+    const tileId = isFromFilledSlot
+      ? foundEl.dataset.tileId || ''
+      : foundEl.dataset.id || '';
+    const letter = foundEl.dataset.letter || foundEl.querySelector('span')?.textContent?.trim() || foundEl.textContent?.trim() || '';
 
-    state.drag = { tile: foundTile, tileId, letter };
+    if (!letter) return false;
+
+    state.drag = { tile: foundEl, tileId, letter, fromSlotIndex };
     state.dropPoint = point;
-    foundTile.classList.add('drag-source');
+    foundEl.classList.add('drag-source');
     this.invalidateControlCache();
 
     state.ghost.textContent = letter;
@@ -616,6 +717,95 @@ export class GestureInputController implements InputController {
 
     this.events.onTileGrab?.({ x: point.x, y: point.y, handId: state.id });
     return true;
+  }
+
+  private beginButtonHold(state: HandRuntimeState, now: number): boolean {
+    this.invalidateControlCache();
+    const points = this.anchorCandidates(state);
+    let foundButton: HTMLButtonElement | null = null;
+
+    for (const anchor of points) {
+      const btn = this.findNearestActionButton(anchor.x, anchor.y, 32, now);
+      if (btn) {
+        foundButton = btn;
+        break;
+      }
+    }
+
+    if (!foundButton || foundButton.disabled) return false;
+
+    const label =
+      foundButton.dataset.gestureLabel ||
+      foundButton.textContent?.trim() ||
+      foundButton.getAttribute('aria-label') ||
+      'nút';
+
+    state.buttonHold = {
+      button: foundButton,
+      label,
+      startedAt: now,
+      durationMs: BUTTON_HOLD_DURATION_MS,
+      progress: 0,
+    };
+    foundButton.classList.add('hand-button-holding');
+    return true;
+  }
+
+  private cancelButtonHold(state: HandRuntimeState): void {
+    if (!state.buttonHold) return;
+    state.buttonHold.button.classList.remove('hand-button-holding');
+    state.buttonHold = null;
+  }
+
+  private updateActiveButtonHold(state: HandRuntimeState, now: number): void {
+    const hold = state.buttonHold;
+    if (!hold) return;
+
+    if (!hold.button.isConnected || hold.button.disabled || !state.heldGesture) {
+      this.cancelButtonHold(state);
+      return;
+    }
+
+    const aim = this.handAim(state) || gesturePoint(state.targetLandmarks, state.heldGesture);
+    const rect = hold.button.getBoundingClientRect();
+    // Cho phép biên độ rung tay tự nhiên 42px quanh nút trong lúc giữ 2.2 giây
+    if (!aim || !isPointNearRect(rect, aim.x, aim.y, 42)) {
+      this.cancelButtonHold(state);
+      this.rejectUnattachedGrip(state);
+      this.events.onStatusChange?.('Đã hủy nhấn nút do đưa tay ra ngoài');
+      return;
+    }
+
+    const elapsed = Math.max(0, now - hold.startedAt);
+    hold.progress = clamp(elapsed / hold.durationMs, 0, 1);
+
+    const remainingSec = Math.max(0, (hold.durationMs - elapsed) / 1000).toFixed(1);
+    this.events.onStatusChange?.(`Giữ chụm tay để nhấn "${hold.label}" (${remainingSec}s)...`);
+
+    if (hold.progress >= 1) {
+      const targetBtn = hold.button;
+      const btnLabel = hold.label;
+      const center = {
+        x: rect.left + rect.width / 2,
+        y: rect.top + rect.height / 2,
+      };
+      const palette = glovePalettes[state.id] || glovePalettes[0];
+
+      this.cancelButtonHold(state);
+      this.rejectUnattachedGrip(state);
+      this.invalidateControlCache();
+
+      this.clickRipples.push({
+        x: aim.x || center.x,
+        y: aim.y || center.y,
+        startedAt: now,
+        color: palette.accent,
+      });
+
+      targetBtn.click();
+      this.events.onStatusChange?.(`Đã nhấn "${btnLabel}"!`);
+      this.handVisualDirty = true;
+    }
   }
 
   private rejectUnattachedGrip(state: HandRuntimeState): void {
@@ -629,33 +819,39 @@ export class GestureInputController implements InputController {
     state.openFrames = 0;
   }
 
-  private finishHandDrag(state: HandRuntimeState, x: number, y: number): void {
+  private finishHandDrag(state: HandRuntimeState, x: number, y: number, cancelled: boolean = false): void {
     if (!state.drag) return;
-    const { tile, tileId, letter } = state.drag;
+    const { tile, tileId, letter, fromSlotIndex } = state.drag;
     state.drag = null;
     state.dropPoint = null;
     tile.classList.remove('drag-source');
     state.ghost.hidden = true;
 
-    this.updateHandHighlight(state.id, null, null);
+    this.updateHandHighlight(state.id, null, null, null);
+    this.updateReturnPoolHighlight(false);
     this.invalidateControlCache();
 
-    if (x >= 0 && y >= 0) {
-      const slot = this.findNearestCachedSlot(x, y, 40, performance.now());
-      if (slot && !slot.classList.contains('filled')) {
+    if (!cancelled && x >= 0 && y >= 0) {
+      const slot = this.findNearestDropSlot(x, y, 42, performance.now(), fromSlotIndex);
+      if (slot) {
         const slotIndex = parseInt(slot.dataset.index || '-1', 10);
         if (slotIndex >= 0) {
-          this.events.onTileDrop?.({ tileId, letter, slotIndex });
+          this.events.onTileDrop?.({ tileId, letter, slotIndex, fromSlotIndex });
           this.invalidateControlCache();
         }
+      } else if (typeof fromSlotIndex === 'number' && fromSlotIndex >= 0) {
+        // Kéo từ ô đáp án trên cao xuống kho chữ / thả ngoài các ô khác -> gỡ chữ trả về kho!
+        this.events.onTileDrop?.({ tileId, letter, slotIndex: -1, fromSlotIndex });
+        this.invalidateControlCache();
       }
     }
     this.events.onTileRelease?.({ x, y, handId: state.id });
   }
 
   private resetHand(state: HandRuntimeState): void {
-    this.finishHandDrag(state, -1, -1);
-    this.updateHandHighlight(state.id, null, null);
+    this.finishHandDrag(state, -1, -1, true);
+    this.cancelButtonHold(state);
+    this.updateHandHighlight(state.id, null, null, null);
     state.visible = false;
     state.lastWrist = null;
     state.handLabel = null;
@@ -676,19 +872,28 @@ export class GestureInputController implements InputController {
     state.pinchProgress = 0;
   }
 
+  public processDetectionFrame(
+    landmarkSets: Point[][],
+    labels: (string | null)[],
+    timestamp: number = performance.now(),
+  ): void {
+    this.handleDetectionResult(landmarkSets, labels, timestamp);
+  }
+
   private handleDetectionResult(
     landmarkSets: Point[][],
     labels: (string | null)[],
     timestamp: number = performance.now(),
   ): void {
     this.inferenceFrames++;
+    const now = Number.isFinite(timestamp) ? timestamp : performance.now();
 
     const assignments = assignHandSlots(
       landmarkSets,
       this.handStates.map((s) => s.lastWrist),
       labels,
       this.handStates.map((s) => s.handLabel),
-      this.handStates.map((s) => Boolean(s.drag)),
+      this.handStates.map((s) => Boolean(s.drag || s.buttonHold)),
     );
 
     const screenW = window.innerWidth;
@@ -706,7 +911,7 @@ export class GestureInputController implements InputController {
       }
 
       const rawLandmarks = landmarkSets[assigned];
-      const filtered = filterHandLandmarks(state, rawLandmarks, timestamp);
+      const filtered = filterHandLandmarks(state, rawLandmarks, now);
       if (!filtered) continue;
 
       state.visible = true;
@@ -729,46 +934,65 @@ export class GestureInputController implements InputController {
       }
 
       if (state.tracking?.raw) {
-        const transition = advanceGrip(state, state.tracking.raw, Boolean(state.drag));
+        const transition = advanceGrip(
+          state,
+          state.tracking.raw,
+          Boolean(state.drag),
+          Boolean(state.buttonHold),
+        );
 
         if (transition.ended) {
+          if (state.buttonHold) {
+            this.cancelButtonHold(state);
+          }
           const point = state.dropPoint || releasePoint;
-          this.finishHandDrag(state, point?.x ?? -1, point?.y ?? -1);
-        } else if (transition.started && !this.beginHandDrag(state)) {
-          this.rejectUnattachedGrip(state);
-          this.handMissUntil = performance.now() + 1600;
+          this.finishHandDrag(state, point?.x ?? -1, point?.y ?? -1, false);
+        } else if (transition.started) {
+          if (!this.beginHandDrag(state, now) && !this.beginButtonHold(state, now)) {
+            this.rejectUnattachedGrip(state);
+            this.handMissUntil = now + 1500;
+          }
         }
+      }
+
+      if (state.buttonHold) {
+        this.updateActiveButtonHold(state, now);
       }
     }
 
-    const isAnyDragging = this.handStates.some((s) => s.drag);
-    const isAnyHolding = this.handStates.some((s) => s.heldGesture);
-    const isMissed = performance.now() < this.handMissUntil;
+    const activeHold = this.handStates.find((s) => s.buttonHold)?.buttonHold;
+    if (!activeHold) {
+      const draggingState = this.handStates.find((s) => s.drag);
+      const isAnyHolding = this.handStates.some((s) => s.heldGesture);
+      const isMissed = now < this.handMissUntil;
 
-    let status = 'Đưa bàn tay vào khung hình';
-    if (isAnyDragging) {
-      status = 'Đang giữ khối chữ — thả ngón trên ô trống';
-    } else if (isAnyHolding) {
-      status = 'Đã nhận cử chỉ gắp';
-    } else if (isMissed) {
-      status = 'Hãy đặt vòng ngắm lên chữ cái rồi chụm ngón';
-    } else if (landmarkSets.length === 2) {
-      status = 'Đã nhận diện 2 bàn tay';
-    } else if (landmarkSets.length === 1) {
-      const ready = this.handStates.some((s) => s.readyPair);
-      status = ready
-        ? 'Sẵn sàng: chụm ngón cái–trỏ để gắp chữ'
-        : 'Mở nhẹ ngón cái–trỏ để chuẩn bị gắp';
+      let status = 'Đưa bàn tay vào khung hình';
+      if (draggingState?.drag) {
+        status =
+          typeof draggingState.drag.fromSlotIndex === 'number'
+            ? 'Kéo xuống kho chữ để gỡ hoặc thả sang ô khác'
+            : 'Đang giữ chữ — thả ngón trên ô trống';
+      } else if (isAnyHolding) {
+        status = 'Đã nhận cử chỉ gắp';
+      } else if (isMissed) {
+        status = 'Đặt vòng ngắm lên chữ cái hoặc nút rồi chụm ngón';
+      } else if (landmarkSets.length === 2) {
+        status = 'Đã nhận diện 2 bàn tay';
+      } else if (landmarkSets.length === 1) {
+        const ready = this.handStates.some((s) => s.readyPair);
+        status = ready
+          ? 'Gắp chữ để kéo, hoặc giữ chụm 2.2s trên nút để nhấn'
+          : 'Mở nhẹ ngón cái–trỏ để chuẩn bị thao tác';
+      }
+      this.events.onStatusChange?.(status);
     }
 
-    this.events.onStatusChange?.(status);
     this.handVisualDirty = true;
   }
 
   private loop = (now: number, gen: number) => {
     if (!this.active || gen !== this.cameraGeneration) return;
 
-    // Báo cáo FPS nhận diện AI/Camera thực tế mỗi giây
     if (now - this.lastFpsCheck >= 1000) {
       const currentFps = Math.round((this.inferenceFrames * 1000) / (now - this.lastFpsCheck));
       if (currentFps > 0 || this.video?.readyState === 4) {
@@ -778,16 +1002,21 @@ export class GestureInputController implements InputController {
       this.lastFpsCheck = now;
     }
 
-    // 1. Nội suy mượt tốc độ cao giữa các frame camera
     let visualMoved = false;
+    let hasActiveHoldOrRipple = this.clickRipples.length > 0;
+
     for (const state of this.handStates) {
       if (!state.visible || !state.targetLandmarks) continue;
+      if (state.buttonHold) {
+        this.updateActiveButtonHold(state, now);
+        hasActiveHoldOrRipple = true;
+      }
       const elapsed = state.lastVisualAt == null ? 12 : now - state.lastVisualAt;
       const next = smoothVisualLandmarks(
         state.visualLandmarks,
         state.targetLandmarks,
         elapsed,
-        Boolean(state.drag),
+        Boolean(state.drag || state.buttonHold),
       );
       if (next) {
         visualMoved ||= next.some(
@@ -798,11 +1027,12 @@ export class GestureInputController implements InputController {
       state.lastVisualAt = now;
     }
 
-    // 2. Cập nhật vị trí khối chữ kéo và highlight ô mục tiêu (dùng cache, không ép reflow DOM)
-    if (this.handVisualDirty || visualMoved) {
+    if (this.handVisualDirty || visualMoved || hasActiveHoldOrRipple) {
+      let anyReturningToPool = false;
+
       for (const state of this.handStates) {
         if (!state.visible) {
-          this.updateHandHighlight(state.id, null, null);
+          this.updateHandHighlight(state.id, null, null, null);
           continue;
         }
 
@@ -819,24 +1049,32 @@ export class GestureInputController implements InputController {
           : this.handAim(state);
 
         if (!aimPoint) {
-          this.updateHandHighlight(state.id, null, null);
+          this.updateHandHighlight(state.id, null, null, null);
           continue;
         }
 
-        if (!state.drag) {
-          const tile = this.findNearestCachedTile(aimPoint.x, aimPoint.y, 28, now);
-          this.updateHandHighlight(state.id, tile, null);
+        if (state.drag) {
+          const slot = this.findNearestDropSlot(aimPoint.x, aimPoint.y, 42, now, state.drag.fromSlotIndex);
+          this.updateHandHighlight(state.id, null, slot, null);
+          if (!slot && typeof state.drag.fromSlotIndex === 'number' && state.drag.fromSlotIndex >= 0) {
+            if (!this.tilesContainerRect || isPointNearRect(this.tilesContainerRect, aimPoint.x, aimPoint.y, 120)) {
+              anyReturningToPool = true;
+            }
+          }
+        } else if (state.buttonHold) {
+          this.updateHandHighlight(state.id, null, null, state.buttonHold.button);
         } else {
-          const slot = this.findNearestCachedSlot(aimPoint.x, aimPoint.y, 40, now);
-          this.updateHandHighlight(state.id, null, slot);
+          const grabTarget = this.findNearestGrabSource(aimPoint.x, aimPoint.y, 30, now);
+          const actionBtn = grabTarget ? null : this.findNearestActionButton(aimPoint.x, aimPoint.y, 26, now);
+          this.updateHandHighlight(state.id, grabTarget, null, actionBtn);
         }
       }
 
-      this.drawVirtualHands();
+      this.updateReturnPoolHighlight(anyReturningToPool);
+      this.drawVirtualHands(now);
       this.handVisualDirty = false;
     }
 
-    // 3. Gửi frame mới sang GPU Worker ngay khi webcam có hình mới
     if (
       !this.framePending &&
       now - this.lastCaptureAt >= CAPTURE_MIN_INTERVAL_MS &&
@@ -887,9 +1125,11 @@ export class GestureInputController implements InputController {
     }
   }
 
-  private drawVirtualHands(): void {
+  private drawVirtualHands(now: number = performance.now()): void {
     if (!this.ctx || !this.canvas) return;
     this.ctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
+
+    this.drawClickRipples(now);
 
     for (const state of this.handStates) {
       if (!state.visible || !state.visualLandmarks) continue;
@@ -897,23 +1137,40 @@ export class GestureInputController implements InputController {
     }
   }
 
-  /**
-   * Vẽ găng tay 3D Signly nhỏ gọn, liền khối giải phẫu + Vòng ngắm nam châm (Pinch Reticle):
-   * - Vẽ 2 lớp (Seam Outline trước -> Pastel Gradient Fill đè lên) giúp 5 ngón tay và bầu ngón cái
-   *   hòa quyện thành một chiếc găng tay 3D tròn trịa, không còn vạch chia cắt rời rạc.
-   * - Đổ bóng cứng 3D (+4px Y) đồng bộ phong cách Tactile 3D của các viên chữ cái Signly.
-   */
+  private drawClickRipples(now: number): void {
+    if (!this.ctx || !this.clickRipples.length) return;
+    const ctx = this.ctx;
+    const duration = 420;
+    this.clickRipples = this.clickRipples.filter((r) => now - r.startedAt < duration);
+
+    for (const ripple of this.clickRipples) {
+      const t = clamp((now - ripple.startedAt) / duration, 0, 1);
+      const radius = 16 + t * 38;
+      ctx.save();
+      ctx.globalAlpha = (1 - t) * 0.85;
+      ctx.beginPath();
+      ctx.arc(ripple.x, ripple.y, radius, 0, Math.PI * 2);
+      ctx.strokeStyle = ripple.color;
+      ctx.lineWidth = 4 * (1 - t * 0.5);
+      ctx.stroke();
+      ctx.restore();
+    }
+  }
+
   private drawGloveHand(state: HandRuntimeState): void {
     if (!this.ctx || !state.visualLandmarks) return;
     const ctx = this.ctx;
     const points = state.visualLandmarks;
     const palette = glovePalettes[state.id] || glovePalettes[0];
     const isGrabbing = Boolean(state.drag || state.heldGesture);
-    const isHoveringTarget = Boolean(this.hoveredTiles[state.id] || this.targetedSlots[state.id]);
+    const isHoveringTarget = Boolean(
+      this.hoveredTiles[state.id] || this.targetedSlots[state.id] || this.hoveredButtons[state.id],
+    );
 
-    const palmSpan = clamp(pointDistance(points[5], points[17]), 48, 86);
-    const fingerWidth = clamp(palmSpan * 0.225, 12.5, 19.5);
-    const seamWidth = 2.5;
+    // Kích thước bàn tay 3D lớn hơn (~1.65x), nổi bật, cân đối hoàn hảo với khối chữ cái 66px
+    const palmSpan = clamp(pointDistance(points[5], points[17]), 84, 148);
+    const fingerWidth = clamp(palmSpan * 0.228, 19, 32);
+    const seamWidth = 2.8;
 
     const { palmOutline, cuffCorners, palmCenter } = buildAnatomicalPalmOutline(points, palmSpan);
     const fingerChains = gloveFingers.map((finger) => ({
@@ -923,13 +1180,13 @@ export class GestureInputController implements InputController {
     }));
 
     ctx.save();
-    ctx.globalAlpha = state.lostFrames ? 0.4 : isGrabbing ? 0.95 : 0.86;
+    ctx.globalAlpha = state.lostFrames ? 0.42 : isGrabbing ? 0.95 : 0.88;
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
 
-    // Lớp 0: Bóng cứng 3D Tactile (+4px trục Y chuẩn Signly)
+    // Lớp 0: Bóng cứng 3D Tactile (+5px trục Y chuẩn Signly)
     ctx.save();
-    ctx.translate(0, 4);
+    ctx.translate(0, 5);
     ctx.fillStyle = palette.shadow;
     ctx.strokeStyle = palette.shadow;
     traceRoundedPolygon(ctx, palmOutline);
@@ -948,7 +1205,7 @@ export class GestureInputController implements InputController {
     ctx.strokeStyle = palette.seam;
     if (isGrabbing) {
       ctx.shadowColor = palette.glow;
-      ctx.shadowBlur = 16;
+      ctx.shadowBlur = 18;
     }
 
     traceRoundedPolygon(ctx, palmOutline);
@@ -964,7 +1221,7 @@ export class GestureInputController implements InputController {
 
     ctx.shadowBlur = 0;
 
-    // Lớp 2: Vải găng tay Pastel 3D liền mạch (xóa sạch đường cắt nội bộ giữa ngón & bàn tay)
+    // Lớp 2: Vải găng tay Pastel 3D liền mạch
     const gloveGrad = ctx.createLinearGradient(
       points[9].x,
       points[9].y - palmSpan * 0.4,
@@ -995,7 +1252,7 @@ export class GestureInputController implements InputController {
     ctx.strokeStyle = palette.seam;
     ctx.stroke();
 
-    // Đệm đầu ngón cảm ứng (nổi bật ở ngón Cái & Trỏ để hướng dẫn chụm gắp trực quan)
+    // Đệm đầu ngón cảm ứng
     const activePair =
       state.heldGesture?.type === 'pinch'
         ? state.heldGesture.pair
@@ -1011,22 +1268,21 @@ export class GestureInputController implements InputController {
       ctx.fillStyle = isPrimaryPinchFinger ? palette.accent : `${palette.seam}38`;
       ctx.fill();
 
-      // Điểm phản quang trắng 3D nhỏ trên đầu ngón chính
       if (isPrimaryPinchFinger) {
         ctx.beginPath();
         ctx.arc(tip.x - padRadius * 0.25, tip.y - padRadius * 0.25, padRadius * 0.3, 0, Math.PI * 2);
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.75)';
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.78)';
         ctx.fill();
       }
     }
 
-    // Huy hiệu ngôi sao Signly giữa mu bàn tay
-    const badgeRadius = clamp(palmSpan * 0.145, 8.5, 12.5);
+    // Huy hiệu ngôi sao Signly giữa bàn tay
+    const badgeRadius = clamp(palmSpan * 0.15, 12, 18.5);
     ctx.beginPath();
     ctx.arc(palmCenter.x, palmCenter.y, badgeRadius, 0, Math.PI * 2);
     ctx.fillStyle = `${palette.seam}14`;
     ctx.fill();
-    ctx.lineWidth = 1.5;
+    ctx.lineWidth = 1.8;
     ctx.strokeStyle = `${palette.seam}40`;
     ctx.stroke();
 
@@ -1036,7 +1292,7 @@ export class GestureInputController implements InputController {
     ctx.textBaseline = 'middle';
     ctx.fillText('✦', palmCenter.x, palmCenter.y + 0.5);
 
-    // Lớp 4: Vòng ngắm nam châm (Magnetic Pinch Reticle)
+    // Lớp 4: Vòng ngắm nam châm + Vòng đếm ngược 2.2s nhấn nút
     this.drawPinchReticle(ctx, state, points, activePair, palette, isGrabbing, isHoveringTarget);
 
     ctx.restore();
@@ -1060,59 +1316,95 @@ export class GestureInputController implements InputController {
       x: (tipA.x + tipB.x) / 2,
       y: (tipA.y + tipB.y) / 2,
     };
+
+    // Chế độ đặc biệt: Đang chụm giữ 2.2 giây để nhấn nút chức năng (Nghe từ / Xác nhận / Xóa làm lại)
+    if (state.buttonHold) {
+      const holdPct = clamp(state.buttonHold.progress, 0, 1);
+      const holdRadius = 26;
+      const remainSec = Math.max(0, ((1 - holdPct) * state.buttonHold.durationMs) / 1000).toFixed(1);
+
+      ctx.save();
+      ctx.shadowColor = palette.accent;
+      ctx.shadowBlur = 14;
+
+      // Đĩa nền trắng mờ giúp nhìn rõ vòng đếm ngược trên mọi nền nút
+      ctx.beginPath();
+      ctx.arc(aim.x, aim.y, holdRadius + 4, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.88)';
+      ctx.fill();
+
+      // Vòng rãnh nền
+      ctx.beginPath();
+      ctx.arc(aim.x, aim.y, holdRadius, 0, Math.PI * 2);
+      ctx.strokeStyle = palette.ringTrack;
+      ctx.lineWidth = 5;
+      ctx.stroke();
+
+      // Vòng cung đếm ngược chạy đầy 0% -> 100%
+      ctx.beginPath();
+      ctx.arc(aim.x, aim.y, holdRadius, -Math.PI / 2, -Math.PI / 2 + holdPct * Math.PI * 2);
+      ctx.strokeStyle = palette.accent;
+      ctx.lineWidth = 5.5;
+      ctx.stroke();
+
+      ctx.shadowBlur = 0;
+      ctx.fillStyle = palette.seam;
+      ctx.font = '800 12px Plus Jakarta Sans, system-ui, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(`${remainSec}s`, aim.x, aim.y + 0.5);
+      ctx.restore();
+      return;
+    }
+
     const progress = clamp(state.pinchProgress, 0, 1);
 
-    // Tia nối từ tính giữa 2 đầu ngón khi bắt đầu khép ngón (> 22%)
     if (!isGrabbing && progress > 0.22) {
       ctx.save();
       ctx.beginPath();
-      ctx.setLineDash([3, 3]);
+      ctx.setLineDash([4, 4]);
       ctx.moveTo(tipA.x, tipA.y);
       ctx.lineTo(tipB.x, tipB.y);
       ctx.strokeStyle = palette.accent;
       ctx.globalAlpha = 0.35 + progress * 0.5;
-      ctx.lineWidth = 2;
+      ctx.lineWidth = 2.4;
       ctx.stroke();
       ctx.restore();
     }
 
-    // Vòng con trỏ ngắm chính xác trên điểm gắp/thả
     const targetPoint = isGrabbing ? aim : progress > 0.35 ? pinchMid : aim;
     const outerRadius = isGrabbing
-      ? 13
+      ? 15
       : isHoveringTarget
-        ? 15 - progress * 4
-        : 11 - progress * 2.5;
+        ? 18 - progress * 4.5
+        : 13 - progress * 3;
 
     ctx.save();
     if (isGrabbing || isHoveringTarget) {
       ctx.shadowColor = palette.accent;
-      ctx.shadowBlur = isGrabbing ? 14 : 8;
+      ctx.shadowBlur = isGrabbing ? 16 : 9;
     }
 
-    // Vòng nền mờ
     ctx.beginPath();
     ctx.arc(targetPoint.x, targetPoint.y, outerRadius, 0, Math.PI * 2);
     ctx.strokeStyle = isGrabbing ? palette.accent : palette.ringTrack;
-    ctx.lineWidth = isGrabbing ? 3 : 2.2;
+    ctx.lineWidth = isGrabbing ? 3.2 : 2.5;
     ctx.stroke();
 
-    // Cung tiến độ chụm ngón (khép ngón tới đâu vòng cam chạy đầy tới đó)
     if (!isGrabbing && (progress > 0.12 || isHoveringTarget)) {
       const sweep = Math.max(0.22, progress) * Math.PI * 2;
       ctx.beginPath();
       ctx.arc(targetPoint.x, targetPoint.y, outerRadius, -Math.PI / 2, -Math.PI / 2 + sweep);
       ctx.strokeStyle = palette.accent;
-      ctx.lineWidth = 2.8;
+      ctx.lineWidth = 3.2;
       ctx.stroke();
     }
 
-    // Tâm chấm tròn chuẩn xác
     ctx.beginPath();
-    ctx.arc(targetPoint.x, targetPoint.y, isGrabbing ? 5.5 : isHoveringTarget ? 4.5 : 3.5, 0, Math.PI * 2);
+    ctx.arc(targetPoint.x, targetPoint.y, isGrabbing ? 6 : isHoveringTarget ? 5 : 4, 0, Math.PI * 2);
     ctx.fillStyle = isGrabbing || isHoveringTarget ? palette.accent : palette.seam;
     ctx.fill();
-    ctx.lineWidth = 1.6;
+    ctx.lineWidth = 1.8;
     ctx.strokeStyle = '#ffffff';
     ctx.stroke();
 

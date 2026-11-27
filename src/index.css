@@ -1467,3 +1467,39 @@ select.form-input:hover {
   background-color: rgba(16, 185, 129, 0.14);
   box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.35), inset 0 2px 4px rgba(16, 185, 129, 0.2);
 }
+
+.game-slot.filled.hand-hover-0 {
+  outline: 3.5px solid var(--color-brand-accent);
+  outline-offset: 3px;
+  transform: translateY(-5px) scale(1.05);
+}
+
+.game-slot.filled.hand-hover-1 {
+  outline: 3.5px solid #10b981;
+  outline-offset: 3px;
+  transform: translateY(-5px) scale(1.05);
+}
+
+.game-slot.filled.drag-source {
+  opacity: 0.32;
+  transform: scale(0.94);
+}
+
+.tiles-container.hand-return-target {
+  border-color: var(--color-brand-accent);
+  background: linear-gradient(180deg, rgba(255, 240, 194, 0.45) 0%, rgba(255, 220, 212, 0.32) 100%);
+  box-shadow: 0 0 0 4px rgba(255, 123, 98, 0.18);
+}
+
+button[data-gesture-hold].hand-button-hover:not(:disabled) {
+  outline: 3px solid rgba(255, 123, 98, 0.72);
+  outline-offset: 3px;
+  transform: translateY(-2px);
+}
+
+button[data-gesture-hold].hand-button-holding:not(:disabled) {
+  outline: 3.5px solid var(--color-brand-accent);
+  outline-offset: 4px;
+  box-shadow: 0 0 0 6px rgba(255, 123, 98, 0.24);
+  transform: translateY(1px) scale(0.99);
+}

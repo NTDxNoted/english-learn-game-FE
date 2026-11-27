@@ -132,9 +132,9 @@ describe('Gesture Recognition Math & Logic', () => {
       projected[5].x - projected[17].x,
       projected[5].y - projected[17].y,
     );
-    // Instead of 720px (50% of 1440px), the virtual glove stays compact (~60-85px palm span)
-    expect(renderedPalmSpan).toBeGreaterThan(50);
-    expect(renderedPalmSpan).toBeLessThan(90);
+    // Balanced 3D Signly glove (~95-145px palm span, ~210-250px total height) instead of 720px screen-blocking giant
+    expect(renderedPalmSpan).toBeGreaterThan(85);
+    expect(renderedPalmSpan).toBeLessThan(150);
   });
 
   it('computes smooth pinch progress between 0 and 1', () => {

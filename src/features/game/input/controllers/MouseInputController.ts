@@ -10,6 +10,7 @@ export class MouseInputController implements InputController {
     tile: HTMLElement;
     tileId: string;
     letter: string;
+    fromSlotIndex?: number;
     x: number;
     y: number;
     id: number;
@@ -19,6 +20,7 @@ export class MouseInputController implements InputController {
     tile: HTMLElement;
     tileId: string;
     letter: string;
+    fromSlotIndex?: number;
   } | null = null;
 
   private ghost: HTMLDivElement | null = null;
@@ -89,11 +91,15 @@ export class MouseInputController implements InputController {
     });
   }
 
-  private beginDrag(candidate: { tile: HTMLElement; tileId: string; letter: string }, x: number, y: number) {
-    const { tile, tileId, letter } = candidate;
+  private beginDrag(
+    candidate: { tile: HTMLElement; tileId: string; letter: string; fromSlotIndex?: number },
+    x: number,
+    y: number,
+  ) {
+    const { tile, tileId, letter, fromSlotIndex } = candidate;
     if (!tile || tile.classList.contains('used') || tile.classList.contains('drag-source')) return;
 
-    this.drag = { tile, tileId, letter };
+    this.drag = { tile, tileId, letter, fromSlotIndex };
     tile.classList.add('drag-source');
     const ghost = this.getOrCreateGhost();
     ghost.textContent = letter;
@@ -112,15 +118,19 @@ export class MouseInputController implements InputController {
       slot.classList.remove('targeted');
     });
     const targetSlot = slotAt(x, y);
-    if (targetSlot && !targetSlot.classList.contains('filled')) {
-      targetSlot.classList.add('targeted');
+    const isFromSlot = typeof this.drag.fromSlotIndex === 'number' && this.drag.fromSlotIndex >= 0;
+    if (targetSlot) {
+      const slotIdx = parseInt(targetSlot.dataset.index || '-1', 10);
+      if (isFromSlot ? slotIdx !== this.drag.fromSlotIndex : !targetSlot.classList.contains('filled')) {
+        targetSlot.classList.add('targeted');
+      }
     }
     this.events.onCursorMove?.({ x, y });
   }
 
   private finishDrag(x: number, y: number) {
     if (!this.drag) return;
-    const { tile, tileId, letter } = this.drag;
+    const { tile, tileId, letter, fromSlotIndex } = this.drag;
     tile.classList.remove('drag-source');
     if (this.ghost) this.ghost.hidden = true;
     this.drag = null;
@@ -129,11 +139,18 @@ export class MouseInputController implements InputController {
       slot.classList.remove('targeted');
     });
 
-    const slot = slotAt(x, y);
-    if (slot && !slot.classList.contains('filled')) {
-      const slotIndex = parseInt(slot.dataset.index || '-1', 10);
-      if (slotIndex >= 0) {
-        this.events.onTileDrop?.({ tileId, letter, slotIndex });
+    if (x >= 0 && y >= 0) {
+      const slot = slotAt(x, y);
+      const isFromSlot = typeof fromSlotIndex === 'number' && fromSlotIndex >= 0;
+      if (slot) {
+        const slotIndex = parseInt(slot.dataset.index || '-1', 10);
+        if (slotIndex >= 0 && (isFromSlot ? slotIndex !== fromSlotIndex : !slot.classList.contains('filled'))) {
+          this.events.onTileDrop?.({ tileId, letter, slotIndex, fromSlotIndex });
+        } else if (isFromSlot) {
+          this.events.onTileDrop?.({ tileId, letter, slotIndex: -1, fromSlotIndex });
+        }
+      } else if (isFromSlot) {
+        this.events.onTileDrop?.({ tileId, letter, slotIndex: -1, fromSlotIndex });
       }
     }
     this.events.onTileRelease?.({ x, y });
@@ -154,6 +171,24 @@ export class MouseInputController implements InputController {
         y: event.clientY,
         id: event.pointerId,
       };
+      return;
+    }
+    const filledSlot = target?.closest<HTMLElement>('.game-slot.filled');
+    if (filledSlot) {
+      const fromSlotIndex = parseInt(filledSlot.dataset.index || '-1', 10);
+      const tileId = filledSlot.dataset.tileId || '';
+      const letter = filledSlot.dataset.letter || filledSlot.querySelector('span')?.textContent?.trim() || '';
+      if (fromSlotIndex >= 0 && letter) {
+        this.pointerCandidate = {
+          tile: filledSlot,
+          tileId,
+          letter,
+          fromSlotIndex,
+          x: event.clientX,
+          y: event.clientY,
+          id: event.pointerId,
+        };
+      }
     }
   };
 

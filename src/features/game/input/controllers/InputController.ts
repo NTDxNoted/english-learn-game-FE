@@ -10,6 +10,7 @@ export interface TileDropEvent {
   tileId: string;
   letter: string;
   slotIndex: number;
+  fromSlotIndex?: number;
 }
 
 export interface InputControllerEvents {
