@@ -60,10 +60,12 @@ export const CameraPreview: React.FC<CameraPreviewProps> = ({
             <span
               style={{
                 fontSize: '0.7rem',
-                padding: '0.1rem 0.35rem',
-                borderRadius: '4px',
+                padding: '0.12rem 0.4rem',
+                borderRadius: '6px',
+                fontVariantNumeric: 'tabular-nums',
                 backgroundColor: isLowFps ? '#ef4444' : 'rgba(255, 255, 255, 0.2)',
               }}
+              title="Tốc độ nhận diện cử chỉ AI thực tế"
             >
               {fps} FPS
             </span>
@@ -81,7 +83,7 @@ export const CameraPreview: React.FC<CameraPreviewProps> = ({
 
       {/* Video khung nhìn */}
 
-        <div hidden={isMinimized} style={{ position: 'relative', width: '100%', height: '160px', backgroundColor: '#000000' }}>
+        <div hidden={isMinimized} style={{ position: 'relative', width: '100%', height: '160px', backgroundColor: '#1e1a52' }}>
           <video
             ref={videoRef}
             autoPlay

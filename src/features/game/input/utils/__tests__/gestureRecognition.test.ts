@@ -7,6 +7,9 @@ import {
   isFistClosed,
   isFistOpen,
   toScreenPoint,
+  projectComfortScreenPoint,
+  projectNormalizedHandToScreen,
+  getPinchProgress,
   nearestRectIndex,
   type Point,
 } from '../gestureRecognition';
@@ -109,5 +112,37 @@ describe('Gesture Recognition Math & Logic', () => {
     expect(nearestRectIndex(rects, 25, 25, 10)).toBe(0);
     expect(nearestRectIndex(rects, 95, 25, 10)).toBe(1);
     expect(nearestRectIndex(rects, 200, 200, 20)).toBe(-1);
+  });
+
+  it('maps comfort zone margins cleanly across full screen', () => {
+    const leftEdge = projectComfortScreenPoint({ x: 0.91, y: 0.5 }, 1000, 800, 0.09, 0.11);
+    const rightEdge = projectComfortScreenPoint({ x: 0.09, y: 0.5 }, 1000, 800, 0.09, 0.11);
+    expect(leftEdge.x).toBeCloseTo(0, 1);
+    expect(rightEdge.x).toBeCloseTo(999, 1);
+  });
+
+  it('normalizes close-up giant webcam hands to a compact ergonomic screen span', () => {
+    // Simulate a user sitting very close to laptop camera (palm spans 50% of webcam width!)
+    const closeUpHand = createMockHand(0.5, 0.5);
+    closeUpHand[5] = { x: 0.25, y: 0.5 };
+    closeUpHand[17] = { x: 0.75, y: 0.5 };
+
+    const projected = projectNormalizedHandToScreen(closeUpHand, 1440, 900);
+    const renderedPalmSpan = Math.hypot(
+      projected[5].x - projected[17].x,
+      projected[5].y - projected[17].y,
+    );
+    // Instead of 720px (50% of 1440px), the virtual glove stays compact (~60-85px palm span)
+    expect(renderedPalmSpan).toBeGreaterThan(50);
+    expect(renderedPalmSpan).toBeLessThan(90);
+  });
+
+  it('computes smooth pinch progress between 0 and 1', () => {
+    const openHand = createMockHand(0.5, 0.5);
+    expect(getPinchProgress(openHand, [4, 8])).toBe(0);
+
+    const pinchingHand = createMockHand(0.5, 0.5);
+    pinchingHand[4] = { x: pinchingHand[8].x + 0.04, y: pinchingHand[8].y };
+    expect(getPinchProgress(pinchingHand, [4, 8])).toBe(1);
   });
 });
