@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
-import { GestureInputController } from './GestureInputController';
+import { GestureInputController, buildAnatomicalPalmOutline } from './GestureInputController';
 
 const stopTrack = vi.fn();
 const stream = { getTracks: () => [{ stop: stopTrack }] } as unknown as MediaStream;
@@ -71,4 +71,23 @@ it('rejects a worker initialization error and releases the camera', async () => 
   expect(stopTrack).toHaveBeenCalledOnce();
   expect(workers[0].terminate).toHaveBeenCalledOnce();
   expect(input.isActive()).toBe(false);
+});
+
+it('builds a non-self-intersecting anatomical palm outline with thumb side aligned to index knuckle', () => {
+  const pts = Array.from({ length: 21 }, () => ({ x: 500, y: 500 }));
+  pts[0] = { x: 500, y: 540 }; // Wrist
+  pts[1] = { x: 472, y: 520 }; // Thumb CMC (left side)
+  pts[2] = { x: 458, y: 496 }; // Thumb MCP (left side)
+  pts[5] = { x: 470, y: 475 }; // Index MCP (left side)
+  pts[9] = { x: 492, y: 470 }; // Middle MCP
+  pts[13] = { x: 514, y: 473 }; // Ring MCP
+  pts[17] = { x: 534, y: 482 }; // Pinky MCP (right side)
+
+  const { palmOutline } = buildAnatomicalPalmOutline(pts, 64);
+  const wristThumbSide = palmOutline[0];
+  const wristPinkySide = palmOutline[palmOutline.length - 1];
+
+  // Wrist thumb side must stay on the same left side as Index MCP (5), never crossing to Pinky side!
+  expect(wristThumbSide.x).toBeLessThan(pts[0].x);
+  expect(wristPinkySide.x).toBeGreaterThan(pts[0].x);
 });

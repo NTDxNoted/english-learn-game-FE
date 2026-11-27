@@ -130,6 +130,78 @@ export function toScreenPoint(point: Point, width: number, height: number): Poin
   };
 }
 
+/**
+ * Ánh xạ vùng trung tâm thoải mái của webcam ra toàn màn hình để người dùng
+ * không phải vươn tay sát mép camera mới chạm tới các ô ở rìa.
+ */
+export function projectComfortScreenPoint(
+  point: Point,
+  width: number,
+  height: number,
+  marginX: number = 0.09,
+  marginY: number = 0.11,
+): Point {
+  const spanX = Math.max(0.2, 1 - marginX * 2);
+  const spanY = Math.max(0.2, 1 - marginY * 2);
+  const normX = Math.max(0, Math.min(1, (1 - point.x - marginX) / spanX));
+  const normY = Math.max(0, Math.min(1, (point.y - marginY) / spanY));
+  return {
+    x: normX * Math.max(1, width - 1),
+    y: normY * Math.max(1, height - 1),
+  };
+}
+
+/**
+ * Chuẩn hóa kích thước bàn tay 3D trên màn hình:
+ * - Giữ nguyên vị trí con trỏ điều khiển theo tâm bàn tay trong vùng Comfort Zone.
+ * - Cố định kích thước bàn tay gọn gàng (~62-74px bề ngang lòng bàn tay) để không bao giờ
+ *   phóng đại che khuất thẻ từ vựng hoặc hàng ô đáp án khi ngồi gần laptop.
+ */
+export function projectNormalizedHandToScreen(
+  landmarks: Point[],
+  width: number,
+  height: number,
+): Point[] {
+  if (!landmarks.length) return [];
+  const anchorNorm = landmarks[9] || landmarks[0];
+  const anchorScreen = projectComfortScreenPoint(anchorNorm, width, height);
+
+  const aspectY = 0.75; // Tỷ lệ khung hình chuẩn 4:3 của webcam
+  const rawSpan = Math.max(
+    0.045,
+    Math.hypot(
+      landmarks[5].x - landmarks[17].x,
+      (landmarks[5].y - landmarks[17].y) * aspectY,
+    ),
+  );
+
+  const baseSpanPx = Math.max(54, Math.min(72, Math.min(width, height) * 0.076));
+  const depthBreath = Math.max(0.9, Math.min(1.12, rawSpan / 0.16));
+  const scalePx = (baseSpanPx * depthBreath) / rawSpan;
+
+  return landmarks.map((pt) => ({
+    x: Math.max(-48, Math.min(width + 48, anchorScreen.x - (pt.x - anchorNorm.x) * scalePx)),
+    y: Math.max(-48, Math.min(height + 48, anchorScreen.y + (pt.y - anchorNorm.y) * aspectY * scalePx)),
+  }));
+}
+
+/**
+ * Tính mức độ chụm ngón (0 = mở rộng, 1 = đã chạm ngưỡng gắp) để vẽ vòng ngắm nam châm.
+ */
+export function getPinchProgress(landmarks: Point[] | null, activePair?: GrabPair | null): number {
+  if (!landmarks || landmarks.length < 21) return 0;
+  const pairs: readonly GrabPair[] = activePair ? [activePair] : GRAB_PAIRS;
+  let bestProgress = 0;
+  for (const pair of pairs) {
+    const ratio = pinchRatio(landmarks, pair);
+    const limits = pinchLimits(pair);
+    const span = Math.max(0.08, limits.open - limits.close);
+    const progress = Math.max(0, Math.min(1, (limits.open - ratio) / span));
+    if (progress > bestProgress) bestProgress = progress;
+  }
+  return bestProgress;
+}
+
 export function gesturePoint(points: Point[] | null, gesture: Gesture | null): Point | null {
   if (!points || !points.length) return null;
   if (gesture?.type === 'fist') return points[9];
@@ -253,7 +325,9 @@ export function advanceGrip(
     if (!samePair(candidate.pair, state.pendingPair)) state.closeFrames = 0;
     state.pendingPair = candidate.pair;
     state.readyPair = candidate.pair;
-    state.closeFrames++;
+    const decisivePinch =
+      pinchRatio(landmarks, candidate.pair) <= pinchLimits(candidate.pair).close * 0.84;
+    state.closeFrames += decisivePinch ? 2 : 1;
   } else if (opened.length) {
     state.readyPair = opened[0];
     state.pendingPair = null;
